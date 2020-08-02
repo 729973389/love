@@ -1,0 +1,4 @@
+目的：
+清除git commit -m ""的提交
+解决方法：
+$ git reset
