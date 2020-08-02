@@ -1,0 +1,7 @@
+syntax="proto3";
+package protobuf;
+
+message connect {
+  string id =1;
+  string password =2;
+}

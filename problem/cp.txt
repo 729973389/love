@@ -1,0 +1,4 @@
+连同权限属性一起复制：
+$ cp -p src dst
+$cp - r src dst 复制目录
+

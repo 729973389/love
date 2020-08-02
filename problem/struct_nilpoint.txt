@@ -1,0 +1,30 @@
+problem
+m :=t2{
+}
+m.B.A="2"
+fmt.Println(m)
+
+}
+
+type t1 struct {
+   A string
+}
+type t2 struct {
+   B *t1
+}
+
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal 0xc0000005 code=0x0 addr=0x0 pc=0x5cdcc4]
+
+goroutine 1 [running]:
+main.main()
+reason：
+go 初始化默认为类型的零值，而指针的零值为nil，所以*nil找不到地址。
+solve：
+给指针分配一块相同类型的地址:
+m :=t2{
+   B: new(t1),
+}
+m.B.A="2"
+fmt.Println(m)
+结果：{0xc00002e7d0}

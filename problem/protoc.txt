@@ -1,0 +1,9 @@
+问题：
+wuff@ubuntu:~/Public/test1/proto$ protoc --go_out=. proto_test.proto
+protoc-gen-go: program not found or is not executable
+--go_out: protoc-gen-go: Plugin failed with status code 1.
+解决方法：
+在~/.bashrc加上
+export GOPATH=$HOME/go
+export GOBIN=$GOPATH/bin
+export PATH=$PATH:$GOBIN

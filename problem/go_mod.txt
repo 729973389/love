@@ -1,0 +1,6 @@
+问题：
+go get xxxxxxxx
+go install xxxxxx
+err:    can not load the package from GOPATH or GOROOT.
+问题原因：go项目在gopath路径外并且没有使用 go mod init 初始化来设置gomodule 路径，所以go 会认为是GOPATH，但是GOPATH路径下找不到此项目的包。
+解决方法： 在当前目录go mod init xxx 。

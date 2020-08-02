@@ -1,0 +1,13 @@
+proto import导入其他的.proto
+路径从-I=xxx路径下开始寻找.proto文件
+使用则根据导入的.proto文件的package名字来使用。
+：syntax="proto3";
+package test;
+option go_package="lib/test";
+import "tset.proto";
+
+message test2{
+  test.Wuff test2wuff=1;
+  string name=2;
+}
+

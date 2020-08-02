@@ -1,0 +1,5 @@
+安装protocbuf：
+1：
+go install google.golang.org/protobuf/cmd/protoc-gen-go
+2：
+sudo apt install ptotobuf-compiler

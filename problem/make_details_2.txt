@@ -1,0 +1,110 @@
+||The make utility requires a file, Makefile (or makefile), which defines set of tasks to be executed.
+||
+Basic examples:
+Makefile:
+ say_hello:
+             echo "Hello World"
+/////// Now run the file by typing inside the directoty.
+$ make
+echo "Hello World" 
+Hello World
+//in the example above,say_hello behaves like a function name, as in any programming language. This is called the target.
+To summarize,below is the syntax of typical rule:
+target:prerequiresites
+<TAB> recipe //(a set of instructions for preparing a particular dish, including a list of the ingredients required.
+)
+Going back to the example above, when make was executed, the entire command echo "Hello World" was displayed,
+ followed by actual command output. We often don't want that. To suppress echoing the actual command, 
+we need to start echo with @:
+say_hello:
+	@echo "Hello World"
+//////Now try to run make again.The output should display only this:
+$ make
+Hello World
+//Let's add a few more phony targets: generate and clean to the Makefile:
+.PHONY: all say_hello generate clean
+all: say_hello generate
+
+say_hello:
+        @echo "Hello World"
+
+generate:
+        @echo "Creating empty text files..."
+        touch file-{1..10}.txt
+
+clean:
+        @echo "Cleaning up..."
+        rm *.txt
+
+////// special phony target, .PHONY, where we define all the targets that are not files. 
+||
+Advanced example
+Variables:In the above example,most target and prereruisite values are hard-coded,but in real project,these are replaced with variables and patterns.
+The simplest way to define a variable in a makefile is to use the = operator. For example, to assign the command gcc to a variable CC:
+CC = gcc 
+This is also called a recursive expanded variable, and it is used in a rule as shown below:
+
+hello: hello.c
+    ${CC} hello.c -o hello
+As you may have guessed, the recipe expands as below when it is passed to the terminal:
+
+gcc hello.c -o hello
+Both ${CC} and $(CC) are valid references to call gcc. But if one tries to reassign a variable to itself, it will cause an infinite loop. Let's verify this:
+
+CC = gcc
+CC = ${CC}
+
+all:
+    @echo ${CC}
+Running make will result in:
+
+$ make
+Makefile:8: *** Recursive variable 'CC' references itself (eventually).  Stop.
+To avoid this scenario, we can use the := operator (this is also called the simply expanded variable). We should have no problem running the makefile below:
+
+CC := gcc
+CC := ${CC}
+
+all:
+    @echo ${CC}
+/////Patterns and functions
+The following makefile can compile all C programs by using variables, patterns, and functions. Let's explore it line by line:
+
+# Usage:
+# make        # compile all binary
+# make clean  # remove ALL binaries and objects
+
+.PHONY = all clean
+
+CC = gcc                        # compiler to use
+
+LINKERFLAG = -lm
+
+SRCS := $(wildcard *.c)
+BINS := $(SRCS:%.c=%)
+
+all: ${BINS}
+
+%: %.o
+        @echo "Checking.."
+        ${CC} ${LINKERFLAG} $< -o $@
+
+%.o: %.c
+        @echo "Creating object.."
+        ${CC} -c $<
+
+clean:
+        @echo "Cleaning up..."
+        rm -rvf *.o ${BINS}
+////Lines starting with # are comments.
+
+Line .PHONY = all clean defines phony targets all and clean.
+
+Variable LINKERFLAG defines flags to be used with gcc in a recipe.
+
+SRCS := $(wildcard *.c): $(wildcard pattern) is one of the functions for filenames. In this case, all files with the .c extension will be stored in a variable SRCS.
+
+BINS := $(SRCS:%.c=%): This is called as substitution reference. In this case, if SRCS has values 'foo.c bar.c', BINS will have 'foo bar'.
+
+Line all: ${BINS}: The phony target all calls values in${BINS} as individual targets.
+

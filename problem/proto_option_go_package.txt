@@ -1,0 +1,5 @@
+problem：
+go generate .proto文件无缘无故多import了一个lib/test包
+reason:option go_package=”/lib/test”中第一个多了/。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+1:解决方法:去除”/”
+2:将.pb.go 文件中的import  test “lib/test” 删除，并将下面给的所有test.删除:
