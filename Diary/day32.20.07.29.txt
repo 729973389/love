@@ -1,0 +1,93 @@
+||grps:
+. gRPC can use protocol buffers as both its Interface Definition Language (IDL) and as its underlying message interchange format.
+||protobuf:
+1.define message formats in a .proto file.
+2.use the protocol buffer compiler .
+3.use the Go protocol buffer API to write and read messages.
+protocol buff compiler creats a .pb.go class (implements automatic encoding and parsing of the protocol buffer data with an efficient binary format.) from .ptoto file.
+$$
+syntax ="proto3";
+package protobuf;
+option go_package="protobuf"
+import "github.com/wuff/1996/codelib/test2.proto"
+
+message human{
+string name=1;
+}
+$$
+he go_package option defines the import path of the package which will contain all the generated code for this file.
+$$
+message Person {
+  string name = 1;
+  int32 id = 2;  // Unique ID number for this person.
+  string email = 3;
+
+  enum PhoneType {
+    MOBILE = 0;
+    HOME = 1;
+    WORK = 2;
+  }
+
+  message PhoneNumber {
+    string number = 1;
+    PhoneType type = 2;
+  }
+
+  repeated PhoneNumber phones = 4;
+
+  google.protobuf.Timestamp last_updated = 5;
+}
+message AddressBook {
+  repeated Person people = 1;     //slice []Person
+}$$ 
+You can also define enum types if you want one of your fields to have one of a predefined list of values – here you want to specify that a phone number can be one of MOBILE, HOME, or WORK.
+protoc -I=$SRC_DIR --go_out=$DST_DIR $SRC_DIR/addressbook.proto
+||generate.go
+$$var CmdGenerate = &base.Command{
+    Run:       runGenerate,
+    UsageLine: "go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | 
+packages]",
+ Short:     "generate Go files by processing source",
+    Long: `Generate runs commands described by directives within existing
+files.Those commands can run any process but the intent is to
+create or update Go source files.
+       Go generate scans the file for directives, which are lines of
+the form,
+
+    //go:generate command argument...
+Go generate sets several variables when it runs the generator:
+
+    $GOARCH
+        The execution architecture (arm, amd64, etc.)
+    $GOOS
+        The execution operating system (linux, windows, etc.)
+    $GOFILE
+        The base name of the file.
+    $GOLINE
+        The line number of the directive in the source file.
+    $GOPACKAGE
+        The name of the package of the file containing the directive.
+    $DOLLAR
+        A dollar sign.Go generate accepts one specific flag:
+
+    -run=""
+        if non-empty, specifies a regular expression to select
+        directives whose full original source text (excluding
+        any trailing spaces and final newline) matches the
+        expression.
+
+It also accepts the standard build flags including -v, -n, and -x.
+The -v flag prints the names of packages and files as they are
+processed.
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.'
+||
+linux创建一个新地go项目：
+$ mkdir xxx
+$cd xxx
+$go mod init xxx
+||安装protocbuf：
+1：
+go install google.golang.org/protobuf/cmd/protoc-gen-go
+2：
+sudo apt install ptotobuf-compiler

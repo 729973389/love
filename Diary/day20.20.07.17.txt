@@ -1,0 +1,37 @@
+计算机硬件大致分为 输入端元（input）-->内存（memory）<-->CPU逻辑运算单元<-->CPU控制单元(控制单元可控制所有其他单元) ,而内存<-->输出单元，内存<-->外部存储器。
+CPU内置微指令集。分为RISC（精简指令集）和CISC（复杂指令集）；而x86_64就是CISC，64代表CPU一次性可读取的最大bits，由于1bit只能表示1/0，信息量太小，于是规定了1byte=8bits来存储信息。
+
+||系统只是管理各个硬件，并不能为用户提供任何功能，但是系统有：1.系统调用接口（system call interface），程序与核心沟通利用硬件资源；
+2.程序管理（process control），CPU调度
+3.内存管理（memory management），程序码和程序数据存放在内存
+4.文件管理系统（Filesystem management），I/O
+5.设备的驱动（device drivers）硬件管理。
+
+在Linux中，所有的程序或系统设备都是文件！shell只是一个软件！
+比如SATA接口硬盘的文件名称为/dev/sd[a-d],几乎所有的硬件设备的文件都在/dev这个目录中。仿真器产生的磁盘文件在/dev/vd[a-p]
+目录树结构（directory tree），根目录（root directory）为树的根节点，用[/]表示，其他目录都是以树的形式向下传递。
+由于文件数据其实是放在磁盘分区当中的，所以需要用到挂载（mount）来结合目录树的架构与磁盘的数据。文件系统与目录树的关系（mount），利用一个目录当成进入点，将磁盘分区的数据放置在该目录下，进入该目录就可以读取
+该分区的数据，进入点的目录称为挂载点（mount point），根目录一定要挂载到某个存储分区才能将目录树结构和文件数据结合起来，其他的目录可以自己挂载。
+
+||纯文字模式的终端接口，terminal或console，默认有6个，使用【ctrl】+【alt】+【F1】-【F6】来切换
+！！Linux其实都是通过程序在和系统沟通，tty，窗口，文本模式都是一组或一只程序在负责用户所想完成的任务。文字模式登录所取得的程序成为壳（shell），因为这支程序负责跟最外面的使用者沟通，才成为壳，其中最厉害的分支为bash。
+||[command] [options]  [parameters]  [COMMANDS] //其中command为程序或可执行文件，如批次脚本script，options为命令的具体方法，COMMANDS为在程序执行时，可在此程序中下达的指令。在终端中 --完整名字 -缩写，无论空几格
+都视为空一格，键入【Enter】代表者一行指令的开始启动；如果指令很多，可以使用\使指令连续，如$cd /hom\e 而“;”使指令按顺序执行，如$cd /home;cd wuff;ls 将会显示/home/wuff目录下的文件。在Linux中大小写是不一样的，所以Linux
+并不等于linux。
+||常见的基本指令$date &it 显示日期
+$local 显示所支持的语系
+$bc 简单好用的计算机
+$cal [month]? [year]? 显示日历
+||在终端下达指令后会出现两种情况：1.显示结果后返回TTY
+2.进入到该指令的软件工作环境，直到结束改指令。
+
+||Linux一些小技巧：
+【Tab】命令补全与文件补全
+【Ctrl】+ 【c】中断目前的程序，可以将正运行的指令中断
+【Ctrl】+【d】键盘输入结束（EOF end of file或EOI end of input 可代替exit）
+【Shift】+【Pageup/down】翻看terminal页
+ $[command] --help 求助
+ $man [command] 操作指导，在软件内部可输入/xxx搜寻xxx关键字，其中n找下一个关键字，N找上一个关键字。
+ $nano xxx 存在就打开，不存在就新建并打开
+^ 代表 Ctrl
+  $who $netstat -s $ps -aux 可了解主机使用状态。

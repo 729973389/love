@@ -1,0 +1,61 @@
+||1:Linux修改host文件  $vim /etc/resolv/hosts 
+2:$chmod -R 777 xxx修改权限，其中-R表示递归
+||数据类型中，float转为int向下取整。
+浮点数float32的有效数字大约是6位，而float64的有效数字大约是15位，$math.IsNaN判断菜蔬是否为非数值
+字符串：是不可变的字节序列，s[i:j]则取i<= ...<j，用$+可以连接两个字符串，rune的底层数据结构是int32
+UTF8编码最多追溯三个字节，它的最高位声明它是几位的ASCLL码。
+||（1）strings包：提供了搜索，替换，比较，修整，切分，连接字符串。
+（2）byte包类似，用于操作slice，由于字符串不可变，所以会导致多次内存分配和复制。
+（3）strconv包具备的函数用于布尔值，整数，浮点数与字符串之间的相互转换。
+（4）Unicode包的函数提用于判别文字符号值的特性.
+(5)bytes包提供了更高效处理slice的Buffer类型，此类型变量后面可以添加任意添加文字字符。
+||day13做了通过gocv获取帧frame，流程是：
+1.$NewMat()
+2.OpenCaputureVideo("schema://url:port")
+3.VideoCaputure.Read(*Mat) 
+4.os.OpenFile("name.jpg",os.O_CREAT|O_RDWR,0666//perm\\)
+5.bufio.NewWriter(file).Writer([]byte).Flush()
+||day14改论文
+||day15公司复习，玩
+||day16将视频传到华为IoTEdge，使用docker通过挂载本地文件到容器内部目录，并用sh 进行容器内部bash命令go build等
+docker run --rm -it -v [mygocode]:/app [dockerimage] sh -c 'cd /app;go build;/app/app'
+||day17实现华为IoTEdge的设备发送接受功能：
+type MessageHandler func(c Client, m Message){ ...}
+Subscribe(topic,Qos,retained,callbackMessageHandler)
+json.UnMarshal(payload []byte ,$struct)
+for{switch {case bool:...continue \n  ch<-GetFrame  \n...}}注意continue，break，return的区别
+由于华为的下行topic有通配符，上行topic会被误认为订阅topic，解决方法为加个if判断message.Topic是否是上行topic，如果是则return跳出函数体。
+||day18做一个dockerimage，首先project里有Dockerfile和src，DockerFile定义docker的环境，
+文件、创建按方式和具体化docker container内部的运行方法。例如：
+FROM ...container
+COPY /source /container 
+RUN xx
+而负责打印hello的文件内容为:
+//   #!/bin/sh
+/    echo  "hello"
+docker build -t helloapp:v1 .
+bash指令：$top  $df   $tail -f  $chmod -R 777 $ls /var/log/syslog(系统日志)  $export
+$export PATH=$PATH:xx或者$cd ~;vim .bashrc <export PATH=$PATH:xx
+docker save -O /mnt/hgfs/hello.tar helloapp 
+||day19：
+1Linux设置系统变量：vim /etc/profile
+2.Vmware虚拟机共享文件无法使用：$cd ~;vim .bashrc;mount -t vmhgfs host:/ /mnt/hgfs
+||day20:
+计算机概念，input memory CPU RISC CISC x86_64  1byte=8bits
+kernel核心：1.system call interfae
+2.process control
+3.memory management
+4.Filesystem management| I/O
+5.device drivers 
+在Linux中所有程序或系统设备都是文件！！！shellhi是一个软件，其中最厉害的分支为bash。
+directory tree [/]
+root directory mount dev
+terminal；console;tty; 
+[command] [options]  [parameters]  [COMMANDS]
+$date $bc $cal $local
+在终端中下达指令后会出现的两种情况
+【Tab】  【Ctrl】+【C】  【Ctrl】+【d】   【Shift】+【Pageup/down】  
+$[command] --help   $man [command]   $nano xxx   ^ 代表 Ctrl
+ $who $netstat -s $ps -aux
+
+

@@ -1,0 +1,20 @@
+做了个简易的dockerimage，制作docker镜像的前提主要有两部分，
+首先mkdir一个project，在里面加入两个文件，一个是源代码，一个是Dockerfile，
+Dockerfile定义了docker的环境，文件，创建方式和具体化在docker container内部的运行方法
+具体如下:FROM busybox(container)
+COPY /hello / 将当前目录下的hello文件copy到容器内部的主目录，名称为hello
+RUN cat /hello 在build的时候运行此命令
+而hello文件只是一个简单的shell，里面的内容如下：
+#！/bin/sh 声明脚本需要的能力
+echo "Hello" 打印出字符串Hello
+然后在当前目录 docker build -t [name]:[version] [context] 其中context代表创建容器的上下文，如果用[.]则会从dockerfile中的FROM中自动下载。
+此外还有这几天经常用到的一些bash命令：systemctl status [name] 查看系统的进.
+top 查看系统的CPU
+df 查看系统的磁盘使用情况
+tail -f [...] 显示最后十行，-f表示持续性的更新
+chmod -R 777 xxx —R表示递归更改权限，用于更改directory目录权限
+查看系统的日志是在/var/log/syslog中 ，通过PgUp和PgDn可以上下翻页
+export 显示所有的环境变量
+export PATH:$PATH:xxx 添加xxx目录到PATH中
+docker save -O [url/xxx.tar] dockerimages 将dockerimage保存成.tar归档文件，存放在指定的目录下，其中-O表示输出到文件 而导出则是 docker load xxx.tar 
+

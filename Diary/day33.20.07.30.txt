@@ -1,0 +1,81 @@
+Dockerfile:
+$
+FROM  img
+COPY  main  /
+RUN   .....
+CMD  ./main  
+
+docker build -t hello:v1 .
+docker save -o helloimg.tar hello:v1 
+$ 
+$ docker logs [containername]
+||go module:
+把将自己本地的go.mod 里的package改成 github.com/wuff1996/codelib
+将导入的本地包为：import “github.com/wuff1996/codelib/lib/test”
+||Goland ->git
+Dialog
+Commit Ctrl+K
+Commit and Push Ctrl+Alt+K
+Push Ctrl+Shift+K
+||
+//go:generate protoc -I=. --go_out=. test.proto
+||
+problem
+m :=t2{
+}
+m.B.A="2"
+fmt.Println(m)
+
+}
+
+type t1 struct {
+   A string
+}
+type t2 struct {
+   B *t1
+}
+
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal 0xc0000005 code=0x0 addr=0x0 pc=0x5cdcc4]
+
+goroutine 1 [running]:
+main.main()
+reason：
+go 初始化默认为类型的零值，而指针的零值为nil，所以*nil找不到地址。
+solve：
+给指针分配一块相同类型的地址:
+m :=t2{
+   B: new(t1),
+}
+m.B.A="2"
+fmt.Println(m)
+结果：{0xc00002e7d0}
+///////////////////////////////////
+proto import导入其他的.proto文件
+路径从-I=xxx路径下开始寻找.proto文件
+使用则根据导入的.proto文件的package名字来使用。
+：syntax="proto3";
+package test;
+option go_package="lib/test";
+import "tset.proto";
+
+message test2{
+  test.Wuff test2wuff=1;
+  string name=2;
+}
+||problem
+go generate .proto文件无缘无故多import了一个lib/test包
+reason: option go_package="/lib/test";
+option go_package=”/lib/test”中第一个多了/。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+1:解决方法:去除”/”
+2:将.pb.go 文件中的import  test “lib/test” 删除，并将下面给的所有test.删除
+||
+Repeated Fields
+Each repeated field generates a slice of T field in the struct in Go, where T is the field's element type. For this message with a repeated field:
+message Baz {
+  repeated Bar foo = 1;
+}
+the compiler generates the Go struct:
+type Baz struct {
+        Foo  []*Bar
+}

@@ -1,0 +1,489 @@
+||context package
+/ A Context carries a deadline, a cancellation signal, and other values across
+// API boundaries.
+//
+// Context's methods may be called by multiple goroutines simultaneously.
+type Context interface {
+   // Deadline returns the time when work done on behalf of this context
+   // should be canceled. Deadline returns ok==false when no deadline is
+   // set. Successive calls to Deadline return the same results.
+   Deadline() (deadline time.Time, ok bool)
+
+   // Done returns a channel that's closed when work done on behalf of this
+   // context should be canceled. Done may return nil if this context can
+   // never be canceled. Successive calls to Done return the same value.
+   // The close of the Done channel may happen asynchronously,
+   // after the cancel function returns.
+   //
+   // WithCancel arranges for Done to be closed when cancel is called;
+   // WithDeadline arranges for Done to be closed when the deadline
+   // expires; WithTimeout arranges for Done to be closed when the timeout
+   // elapses.
+   //
+   // Done is provided for use in select statements:
+   //
+   //  // Stream generates values with DoSomething and sends them to out
+   //  // until DoSomething returns an error or ctx.Done is closed.
+   //  func Stream(ctx context.Context, out chan<- Value) error {
+   //     for {
+   //        v, err := DoSomething(ctx)
+   //        if err != nil {
+   //           return err
+   //        }
+   //        select {
+   //        case <-ctx.Done():
+   //           return ctx.Err()
+   //        case out <- v:
+   //        }
+   //     }
+   //  }
+  // a Done channel for cancellation.
+   Done() <-chan struct{}
+ // If Done is not yet closed, Err returns nil.
+   // If Done is closed, Err returns a non-nil error explaining why:
+   // Canceled if the context was canceled
+   // or DeadlineExceeded if the context's deadline passed.
+   // After Err returns a non-nil error, successive calls to Err return the same error.
+   Err() error
+ // Value returns the value associated with this context for key, or nil
+   // if no value is associated with key. Successive calls to Value with
+   // the same key returns the same result.
+   //
+   // Use context values only for request-scoped data that transits
+   // processes and API boundaries, not for passing optional parameters to
+   // functions.
+   //
+   // A key identifies a specific value in a Context. Functions that wish
+   // to store values in Context typically allocate a key in a global
+   // variable then use that key as the argument to context.WithValue and
+   // Context.Value. A key can be any type that supports equality;
+   // packages should define keys as an unexported type to avoid
+   // collisions.
+   //
+   // Packages that define a Context key should provide type-safe accessors
+   // for the values stored using that key:
+   //
+   //     // Package user defines a User type that's stored in Contexts.
+   //     package user
+   //
+   //     import "context"
+   //
+   //     // User is the type of value stored in the Contexts.
+   //     type User struct {...}
+   //
+   //     // key is an unexported type for keys defined in this package.
+   //     // This prevents collisions with keys defined in other packages.
+   //     type key int
+   //
+   //     // userKey is the key for user.User values in Contexts. It is
+   //     // unexported; clients use user.NewContext and user.FromContext
+//     // instead of using this key directly.
+   //     var userKey key
+   //
+   //     // NewContext returns a new Context that carries value u.
+   //     func NewContext(ctx context.Context, u *User) context.Context {
+   //        return context.WithValue(ctx, userKey, u)
+   //     }
+   //
+   //     // FromContext returns the User value stored in ctx, if any.
+   //     func FromContext(ctx context.Context) (*User, bool) {
+   //        u, ok := ctx.Value(userKey).(*User)
+   //        return u, ok
+   //     }
+   Value(key interface{}) interface{}
+||redis
+$
+err = RedisClient().Set(key, b, downlinkFrameTTL).Err()
+if err != nil {
+   return errors.Wrap(err, "save downlink-frame error")
+}
+/ RedisClient returns the Redis client.
+func RedisClient() redis.UniversalClient {
+   return redisClient
+}
+$
+// UniversalClient is an abstract client which - based on the provided options -
+// can connect to either clusters, or sentinel-backed failover instances
+// or simple single-instance servers. This can be useful for testing
+// cluster-specific applications locally.
+type UniversalClient interface {
+   Cmdable
+   Context() context.Context
+   AddHook(Hook)
+   Watch(fn func(*Tx) error, keys ...string) error
+   Do(args ...interface{}) *Cmd
+   DoContext(ctx context.Context, args ...interface{}) *Cmd
+   Process(cmd Cmder) error
+   ProcessContext(ctx context.Context, cmd Cmder) error
+   Subscribe(channels ...string) *PubSub
+   PSubscribe(channels ...string) *PubSub
+   Close() error
+}
+// Redis `SET key value [expiration]` command.
+//
+// Use expiration for `SETEX`-like behavior.
+// Zero expiration means the key has no expiration time.
+func (c cmdable) Set(key string, value interface{}, expiration time.Duration) *StatusCmd {
+   args := make([]interface{}, 3, 5)
+   args[0] = "set"
+   args[1] = key
+   args[2] = value
+   if expiration > 0 {
+      if usePrecise(expiration) {
+         args = append(args, "px", formatMs(expiration))
+      } else {
+         args = append(args, "ex", formatSec(expiration))
+      }
+   }
+   cmd := NewStatusCmd(args...)
+   _ = c(cmd)
+   return cmd
+}
+
+func (c cmdable) SetBit(key string, offset int64, value int) *IntCmd {
+   cmd := NewIntCmd(
+      "setbit",
+      key,
+      offset,
+      value,
+   )
+   _ = c(cmd)
+   return cmd
+}
+val, err := RedisClient().Get(key).Bytes()
+/ Redis `GET key` command. It returns redis.Nil error when key does not exist.
+func (c cmdable) Get(key string) *StringCmd {
+   cmd := NewStringCmd("get", key)
+   _ = c(cmd)
+   return cmd
+}
+||logrus
+Package logrus is a structured logger for Go, completely API compatible with the standard library logger.
+The simplest way to use Logrus is simply the package-level exported logger:
+package main
+import ( log "github.com/sirupsen/logrus" )
+func main() { log.WithFields(log.Fields{ "animal": "walrus", "number": 1, "size": 10, }).Info("A walrus appears") }
+Output: time="2015-09-07T08:48:33Z" level=info msg="A walrus appears" animal=walrus number=1 size=10
+||chirpstack_root_package
+"os" //openfile
+   "text/template"  //parse configfile -> C struct data
+
+   "github.com/pkg/errors"
+   "github.com/spf13/cobra"   //command provider -> (./chirpstack-network-server configfile)  $ func RunE()
+
+   "github.com/brocaar/chirpstack-network-server/internal/config" //define configuration struct , C holds global configuration)
+
+// when updating this template, don't forget to update config.md!
+const configTemplate = `[general]
+||进程的打开文件描述符表
+Linux的三个系统调用：open，socket，pipe 返回的都是一个描述符。不同的进程中，他们返回的描述符可以相同。
+在内核源码中，三个系统调用声明如下：
+ 
+1.SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode);  
+2.SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol);  
+3.SYSCALL_DEFINE1(pipe, int __user *, fildes);  
+他们都会先后调用函数
+get_unused_fd_flags：获取当前进程打开文件描述符表中的空闲描述符；
+fd_install：安装新描述符到当前进程打开文件描述符表。
+内核为每个进程维护了一个结构体struct task_struct，可称为进程表项、进程控制块（PCB: Process Control Block）或者进程描述符，定义如下：
+1.struct task_struct {  
+2.        volatile long state;  /* -1 unrunnable, 0 runnable,>0 stopped */  
+3.        …  
+4.        pid_t pid;  
+5.        …  
+6.        struct files_struct *files;  
+7.        …  
+8.};  
+其中files成员成为打开文件描述符表，定义如下：
+ 
+1.struct files_struct {  
+2.        …  
+3.        struct fdtable fdtab;  
+4.        …  
+5.        struct file __rcu * fd_array[NR_OPEN_DEFAULT];  
+6.};  
+其成员fdtab为关键数据成员，定义如下：
+1.struct fdtable {  
+2.        unsigned int max_fds;  
+3.        struct file __rcu **fd;      /* current fd array */  
+4.        unsigned long *close_on_exec;  
+5.        unsigned long *open_fds;  
+6.        struct rcu_head rcu;  
+7.};  
+||Daemon
+Unix-like systems[edit]
+In a strictly technical sense, a Unix-like system process is a daemon when its parent process terminates and the daemon is assigned the init process (process number 1) as its parent process and has no controlling terminal. However, more generally, a daemon may be any background process, whether a child of the init process or not.
+ background processes which worked tirelessly to perform system chores"
+||pipe
+管道(pipe)是UNIX环境中历史最悠久的进程间通信方式。
+它的发明人是道格拉斯.麦克罗伊，这位也是UNIX上早期shell的发明人。他在发明了shell之后，发现系统操作执行命令的时候，经常有需求要将一个程序的输出交给另一个程序进行处理，这种操作可以使用输入输出重定向加文件搞定，比如：
+[zorro@zorro-pc pipe]$ ls  -l /etc/ > etc.txt[zorro@zorro-pc pipe]$ wc -l etc.txt 183 etc.txt
+但是这样未免显得太麻烦了。所以，管道的概念应运而生.使用“|”连接两个命令，shell会将前后两个进程的输入输出用一个管道相连，以便达到进程间通信的目的：
+[zorro@zorro-pc pipe]$ ls -l /etc/ | wc -l183
+管道本质上就是一个文件，前面的进程以写方式打开文件，后面的进程以读方式打开。
+它本质上就是一个文件。Linux系统直接把管道实现成了一种文件系统，借助VFS给应用程序提供操作接口。虽然实现形态上是文件，但是管道本身并不占用磁盘或者其他外部存储的空间。在Linux的实现上，它占用的是内存空间。所以，Linux上的管道就是一个操作方式为文件的内存缓冲区。
+管道的分类：
+1.匿名管道
+2.命名管道
+匿名管道就是”|“。它的特点是只能在父子进程中使用，父进程在产生子进程前必须打开一个管道文件，然后fork产生子进程，这样子进程通过拷贝父进程的进程地址空间获得同一个管道文件的描述符，以达到使用同一个管道通信的目的。
+此时除了父子进程外，没人知道这个管道文件的描述符，所以通过这个管道中的信息无法传递给其他进程。这保证了传输数据的安全性，当然也降低了管道了通用性，于是系统还提供了命名管道。
+我们可以使用mkfifo或mknod命令来创建一个命名管道，这跟创建一个文件没有什么区别：
+[zorro@zorro-pc pipe]$ mkfifo pipe[zorro@zorro-pc pipe]$ ls -l pipe 
+prw-r--r-- 1 zorro zorro 0 Jul 14 10:44 pipe
+可以看到创建出来的文件类型比较特殊，是p类型。表示这是一个管道文件。有了这个管道文件，系统中就有了对一个管道的全局名称，于是任何两个不相关的进程都可以通过这个管道文件进行通信了。比如我们现在让一个进程写这个管道文件：
+[zorro@zorro-pc pipe]$ echo xxxxxxxxxxxxxx > pipe
+此时这个写操作会阻塞，因为管道另一端没有人读。这是内核对管道文件定义的默认行为。此时如果有进程读这个管道，那么这个写操作的阻塞才会解除：
+[zorro@zorro-pc pipe]$ cat pipe 
+xxxxxxxxxxxxxx
+Linux系统无论对于命名管道和匿名管道，底层都用的是同一种文件系统的操作行为，这种文件系统叫pipefs。大家可以在/etc/proc/filesystems文件中找到你的系统是不是支持这种文件系统：
+[zorro@zorro-pc pipe]$ cat /proc/filesystems |grep pipefs
+nodev    pipefs
+||Golang创建进程
+os 包及其子包 os/exec 提供了创建进程的方法。
+1.进程的创建
+在 Unix 中，创建一个进程，通过系统调用 fork 实现（及其一些变种，如 vfork、clone）。在 Go 语言中，Linux 下创建进程使用的系统调用是 clone。
+很多时候，系统调用 fork、execve、wait 和 exit 会在一起出现。此处先简要介绍这 4 个系统调用及其典型用法。
+fork：允许一进程（父进程）创建一新进程（子进程）。具体做法是，新的子进程几近于对父进程的翻版：子进程获得父进程的栈、数据段、堆和执行文本段的拷贝。可将此视为把父进程一分为二。
+exit(status)：终止一进程，将进程占用的所有资源（内存、文件描述符等）归还内核，交其进行再次分配。参数 status 为一整型变量，表示进程的退出状态。父进程可使用系统调用 wait() 来获取该状态。
+wait(&status) 目的有二：其一，如果子进程尚未调用 exit() 终止，那么 wait 会挂起父进程直至子进程终止；其二，子进程的终止状态通过 wait 的 status 参数返回。
+execve(pathname, argv, envp) 加载一个新程序（路径名为 pathname，参数列表为 argv，环境变量列表为 envp）到当前进程的内存。这将丢弃现存的程序文本段，并为新程序重新创建栈、数据段以及堆。通常将这一动作称为执行一个新程序。
+在 Go 语言中，没有直接提供 fork 系统调用的封装，而是将 fork 和 execve 合二为一，提供了 syscall.ForkExec。如果想只调用 fork，得自己通过 syscall.Syscall(syscall.SYS_FORK, 0, 0, 0) 
+||WebSocket
+what is it ?
+:WebSocket是一种网络传输协议，可在单个TCP连接上进行全双工通信，位于OSI模型的应用层。WebSocket协议在2011年由IETF标准化为RFC 6455，后由RFC 7936补充规范。Web IDL中的WebSocket API由W3C标准化。
+WebSocket使得客户端和服务器之间的数据交换变得更加简单，允许服务端主动向客户端推送数据。在WebSocket API中，浏览器和服务器只需要完成一次握手，两者之间就可以创建持久性的连接，并进行双向数据传输。
+Websocket与HTTP和HTTPS使用相同的TCP端口，可以绕过大多数防火墙的限制。默认情况下，Websocket协议使用80端口；运行在TLS之上时，默认使用443端口。
+
+
+WebSocket 是独立的、创建在TCP上的协议。
+Websocket 通过 HTTP/1.1 协议的101状态码进行握手。
+为了创建Websocket连接，需要通过浏览器发出请求，之后服务器进行回应，这个过程通常称为“握手”（Handshaking）。
+例子[编辑]
+一个典型的Websocket握手请求如下[15]：
+客户端请求：
+GET /chat HTTP/1.1
+Host: server.example.com
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Origin: http://example.com
+Sec-WebSocket-Protocol: chat, superchat
+Sec-WebSocket-Version: 13
+服务器回应：
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+Sec-WebSocket-Protocol: chat
+//字段说明
+Connection必须设置Upgrade，表示客户端希望连接升级。
+Upgrade字段必须设置Websocket，表示希望升级到Websocket协议。
+Sec-WebSocket-Key是随机的字符串，服务器端会用这些数据来构造出一个SHA-1的信息摘要。把“Sec-WebSocket-Key”加上一个特殊字符串“258EAFA5-E914-47DA-95CA-C5AB0DC85B11”，然后计算SHA-1摘要，之后进行Base64编码，将结果做为“Sec-WebSocket-Accept”头的值，返回给客户端。如此操作，可以尽量避免普通HTTP请求被误认为Websocket协议。
+Sec-WebSocket-Version 表示支持的Websocket版本。RFC6455要求使用的版本是13，之前草案的版本均应当弃用。
+Origin字段是可选的，通常用来表示在浏览器中发起此Websocket连接所在的页面，类似于Referer。但是，与Referer不同的是，Origin只包含了协议和主机名称。
+其他一些定义在HTTP协议中的字段，如Cookie等，也可以在Websocket中使用。
+||linux命令之：tree
+参数：
+-a 显示所有文件和目录。
+-A 使用ASNI绘图字符显示树状图而非以ASCII字符组合。
+-C 在文件和目录清单加上色彩，便于区分各种类型。
+-d 显示目录名称而非内容。
+-D 列出文件或目录的更改时间。
+-f 在每个文件或目录之前，显示完整的相对路径名称。
+-F 在执行文件，目录，Socket，符号连接，管道名称名称，各自加上”*”,”/”,”=”,”@”,”|”号。
+-g 列出文件或目录的所属群组名称，没有对应的名称时，则显示群组识别码。
+-i 不以阶梯状列出文件或目录名称。
+-I <范本样式> 不显示符合范本样式的文件或目录名称。
+-l 如遇到性质为符号连接的目录，直接列出该连接所指向的原始目录。
+-n 不在文件和目录清单加上色彩。
+-N 直接列出文件和目录名称，包括控制字符。
+-p 列出权限标示。
+-P <范本样式> 只显示符合范本样式的文件或目录名称。
+-q 用”?”号取代控制字符，列出文件和目录名称。
+-s 列出文件或目录大小。
+-t 用文件和目录的更改时间排序。
+-u 列出文件或目录的拥有者名称，没有对应的名称时，则显示用户识别码。
+-x 将范围局限在现行的文件系统中，若指定目录下的某些子目录，其存放于另一个文件
+||network与WebSocket
+在Go中使用WebSockets之前，让我们在网络套接字和WebSockets之间划清一条界限。
+网络套接字
+网络套接字（或简称为套接字）充当内部端点，用于在同一计算机或同一网络上的不同计算机上运行的应用程序之间交换数据。
+套接字是Unix和Windows操作系统的关键部分，它们使开发人员更容易创建支持网络的软件。应用程序开发人员不可以直接在程序中包含套接字，而不是从头开始构建网络连接。由于网络套接字可用于许多不同的网络协议（如HTTP，FTP等），因此可以同时使用多个套接字。
+套接字是通过一组函数调用创建和使用的，这些函数调用有时称为套接字的应用程序编程接口（API）。正是由于这些函数调用，套接字可以像常规文件一样被打开。
+网络套接字有如下几种类型：
+
+数据报套接字（SOCK_DGRAM），也称为无连接套接字，使用用户数据报协议（UDP）。数据报套接字支持双向消息流并保留记录边界。
+套接字通信
+首先，让我们弄清楚如何确保每个套接字都是唯一的。否则，您将无法建立可靠的沟通通道(channel)。
+为每个进程(process)提供唯一的PID有助于解决本地问题。但是，这种方法不适用于网络。要创建唯一的套接字，我们建议使用TCP / IP协议。使用TCP / IP，网络层的IP地址在给定网络内是唯一的，并且协议和端口在主机应用程序之间是唯一的。
+步骤为：
+连接到TCP套接字，为了建立TCP连接，Go客户端使用net程序包中的DialTCP函数。DialTCP返回一个TCPConn对象。建立连接后，客户端和服务器开始交换数据：客户端通过TCPConn向服务器发送请求，服务器解析请求并发送响应，TCPConn从服务器接收响应。
+该连接将持续保持有效，直到客户端或服务器将其关闭。创建连接的函数如下：
+客户端：
+// init
+   tcpAddr, err := net.ResolveTCPAddr(resolver, serverAddr)
+   if err != nil {
+        // handle error
+   }
+   conn, err := net.DialTCP(network, nil, tcpAddr)
+   if err != nil {
+           // handle error
+   }
+
+   // send message
+    _, err = conn.Write({message})
+   if err != nil {
+        // handle error
+   }
+
+   // receive message
+   var buf [{buffSize}]byte
+   _, err := conn.Read(buf[0:])
+   if err != nil {
+        // handle error
+   }
+服务端：
+// init
+   tcpAddr, err := net.ResolveTCPAddr(resolver, serverAddr)
+       if err != nil {
+           // handle error
+       }
+
+       listener, err := net.ListenTCP("tcp", tcpAddr)
+    if err != nil {
+        // handle error
+    }
+
+    // listen for an incoming connection
+    conn, err := listener.Accept()
+    if err != nil {
+        // handle error
+    }
+
+    // send message
+    if _, err := conn.Write({message}); err != nil {
+        // handle error
+    }
+    // receive message
+    buf := make([]byte, 512)
+    n, err := conn.Read(buf[0:])
+    if err != nil {
+        // handle error
+    }
+$
+什么是WebSocket
+WebSocket通信协议通过单个TCP连接提供全双工通信通道。与HTTP相比，WebSocket不需要您发送请求即可获得响应。它们允许双向数据流，因此您只需等待服务器响应即可。可用时，它将向您发送一条消息。
+对于需要连续数据交换的服务（例如即时通讯程序，在线游戏和实时交易系统），WebSockets是一个很好的解决方案。您可以在RFC 6455规范中找到有关WebSocket协议的完整信息。
+WebSocket连接由浏览器请求发起，并由服务器响应，之后连接就建立起来了。此过程通常称为握手。WebSockets中的特殊标头仅需要浏览器与服务器之间的一次握手即可建立连接，该连接将在其整个生命周期内保持活动状态。
+WebSockets解决了许多实时Web开发的难题，与传统的HTTP相比，它具有许多优点：
+轻量级报头减少了数据传输开销。
+单个Web客户端仅需要一个TCP连接。
+WebSocket服务器可以将数据推送到Web客户端。
+图:WebSocket
+WebSocket协议实现起来相对简单。它使用HTTP协议进行初始握手。成功握手后，连接就建立起来了，并且WebSocket实质上使用原始TCP(raw tcp)来读取/写入数据。
+客户端请求如下所示：
+GET /chat HTTP/1.1
+    Host: server.example.com
+    Upgrade: websocket
+    Connection: Upgrade
+    Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==
+    Sec-WebSocket-Protocol: chat, superchat
+    Sec-WebSocket-Version: 13
+    Origin: http://example.com
+
+这是服务器响应：
+HTTP/1.1 101 Switching Protocols
+    Upgrade: websocket
+    Connection: Upgrade
+    Sec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=
+    Sec-WebSocket-Protocol: chat
+$
+如何在Go中创建WebSocket应用
+要基于该net/http 库编写简单的WebSocket echo服务器，您需要：
+发起握手
+从客户端接收数据帧
+发送数据帧给客户端
+关闭握手
+首先，让我们创建一个带有WebSocket端点的HTTP处理程序：
+// HTTP server with WebSocket endpoint
+func Server() {
+        http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+            ws, err := NewHandler(w, r)
+            if err != nil {
+                 // handle error
+            }
+            if err = ws.Handshake(); err != nil {
+                // handle error
+            }
+        …
+
+然后初始化WebSocket结构。
+初始握手请求始终来自客户端。服务器确定了WebSocket请求后，需要使用握手响应进行回复。
+请记住，您无法使用http.ResponseWriter编写响应，因为一旦开始发送响应，它将关闭基础TCP连接。
+因此，您需要使用HTTP劫持(hijack)。通过劫持，您可以接管基础的TCP连接处理程序和bufio.Writer。这使您可以在不关闭TCP连接的情况下读取和写入数据。
+// NewHandler initializes a new handler
+func NewHandler(w http.ResponseWriter, req *http.Request) (*WS, error) {
+        hj, ok := w.(http.Hijacker)
+        if !ok {
+            // handle error
+        }                  .....
+}
+要完成握手，服务器必须使用适当的头进行响应。
+// Handshake creates a handshake header
+    func (ws *WS) Handshake() error {
+
+        hash := func(key string) string {
+            h := sha1.New()
+            h.Write([]byte(key))
+            h.Write([]byte("258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+
+        return base64.StdEncoding.EncodeToString(h.Sum(nil))
+        }(ws.header.Get("Sec-WebSocket-Key"))
+      .....
+}
+“Sec-WebSocket-key”是随机生成的，并且是Base64编码的。接受请求后，服务器需要将此密钥附加到固定字符串。假设您有x3JJHMbDL1EzLkh9GBhXDw== 钥匙。在这个例子中，可以使用SHA-1计算二进制值，并使用Base64对其进行编码。假设你得到HSmrc0sMlYUkAGmm5OPpG2HaGWk=。使，用它作为Sec-WebSocket-Accept 响应头的值。
+传输数据帧
+握手成功完成后，您的应用程序可以从客户端读取数据或向客户端写入数据。WebSocket规范定义了的一个客户机和服务器之间使用的特定帧格式。这是框架的位模式：
+
+图:传输数据帧的位模式
+使用以下代码对客户端有效负载进行解码：
+// Recv receives data and returns a Frame
+    func (ws *WS) Recv() (frame Frame, _ error) {
+        frame = Frame{}
+        head, err := ws.read(2)
+        if err != nil {
+            // handle error
+        }
+反过来，这些代码行允许对数据进行编码：
+// Send sends a Frame
+    func (ws *WS) Send(fr Frame) error {
+        // make a slice of bytes of length 2
+        data := make([]byte, 2)
+
+        // Save fragmentation & opcode information in the first byte
+        data[0] = 0x80 | fr.Opcode
+        if fr.IsFragment {
+            data[0] &= 0x7F
+        }
+        .....
+关闭握手
+当各方之一发送状态为关闭的关闭帧作为有效负载时，握手将关闭。可选地，发送关闭帧的一方可以在有效载荷中发送关闭原因。如果关闭是由客户端发起的，则服务器应发送相应的关闭帧作为响应。
+// Close sends a close frame and closes the TCP connection
+func (ws *Ws) Close() error {
+    f := Frame{}
+    f.Opcode = 8
+    f.Length = 2
+    f.Payload = make([]byte, 2)
+    binary.BigEndian.PutUint16(f.Payload, ws.status)
+    if err := ws.Send(f); err != nil {
+        return err
+    }
+    return ws.conn.Close()
+}
+$
+||WebSocket库列表
+除了这些工具之外，还有几种替代实现可让您构建强大的流处理解决方案。其中有：
+go-socket.io
+Apache Thrift
+gRPC
+package rpc

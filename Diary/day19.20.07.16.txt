@@ -1,0 +1,35 @@
+1.设置系统变量：vim /etc/profile 在最后的export PATH=后加上:url。可使用echo $PATH查看设置的所有环境变量\f
+2.VMware虚拟机共享文件突然无法使用： 首先如果/mnt/目录下没有文件,则mkdir一个hgfs目录，然后$cd ~ 回到根目录。由于每个目录都会有.bashrc文件，所以$vim .bashrc 文件,在最后一行加上$mount -t vmhgfs .host://mnt/hgfs 将共享的文件夹挂载到/mnt/hgfs目录，即通过/mnt/hgfs/路径访问本地的磁盘空间。
+
+
+
+3.Golang语言中函数传递都是值传递，所以 要么拷贝地址值，要么拷贝值，返回值由于只返回了值，如 $func rt() int { return 5 \n},(!!$&rt()报错，显示无法获取rt()的地址，因为传递过来的是一个值而不是一块内存空间，所以无法获取它的地址，可以用变量来接收它的值，从而获得变量的地址!!!)。
+而$func rs (a int) { &a} 是合法的，因为该函数声明了一个局部变量a来接收传递进来的int值，所以可以获得a变量的地址！！！。通常大型数据都是指针传递，因为拷贝指针的代价远小于拷贝一份值的代价。
+func main() {
+	c := 10
+	fmt.Println(&c)
+	r(c)
+	// fmt.Println(&r(c)) 报错，cant take the address
+}
+
+func r (a int) int{
+	fmt.Println(&a)
+	return a
+}
+
+4.结构体匿名成员类型必须是一个和命名类型或者是指向命名类型的指针。
+
+type MAN struct {
+	Student
+}
+type Student struct {
+	wuff string
+}
+func main() {
+	m := new(MAN)
+	m.wuff ="lxd"
+	fmt.Println(m.Student) //{lxd}
+}
+
+匿名成员的内部变量可直接省略匿名成员，访问该匿名成员用类型名来访问，所以匿名成员不能重复（Duplicate）。
+

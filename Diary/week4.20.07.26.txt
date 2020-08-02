@@ -1,0 +1,5 @@
+1.Linux basic usage
+2.lora
+3.lora
+4.set vmware socket point to CP socket node
+5.Makefile 

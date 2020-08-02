@@ -1,0 +1,89 @@
+||函数的执行顺序：
+golang中的main函数是程序的入口函数，main函数返回后，程序也就结束了。golang还有另外一个特殊的函数init函数，
+先于main函数执行，实现包级别的一些初始化操作。
+init函数的主要作用：
+1.初始化不能采用初始化表达式初始化的变量。
+2.程序运行前的注册。
+3.实现sync.Once功能。
+init函数的主要特点：
+1.init函数先于main函数自动执行，不能被其他函数调用。
+2.init函数没有输入参数、返回值。！！！
+3.每个包有多个init函数。!!!
+4.包的每个源文件也可以有多个init函数！！！
+5.同一个包的init执行顺序，golang没有明确定义，编程时要注意程序不能依赖此执行顺序，但是不同的包会解析依赖顺序。！！
+Golang程序的初始化先于main函数执行，由runtime进行初始化，初始化顺序如下：
+1.runtime解析包与包之间的依赖关系来初始化导入的包，先初始化没有依赖的包
+2.初始化包作用域的变量， 由runtime解析变量依赖关系，没有依赖的变量最先初始化。
+3.执行包init函数。
+实例1：
+$ package main 
+
+import "fmt"
+var A int32 = a()
+func a()int32{
+fmt.Println("init in a()")
+return 2
+}
+
+func init () {
+fmt.Println("init in init()")
+
+}
+
+func main(){
+fmt.Println("calling in main()")
+}
+///OUTPUT:
+init in a()
+init in init()
+calling in main()
+///The order of running is:  global  variable -> init()->main()
+Golang对没有使用的导入包会编译报错，所以可以使用 $ import _ "xxx/xxx/"，只初始化此包而不使用此包。
+$package ff
+
+import "fmt"
+
+var A int32=a()
+
+func a()int32 {
+	fmt.Println("calling a()")
+	return 1
+}
+func init(){
+	fmt.Println("init ff")
+}
+
+$package main
+
+import (
+	"fmt"
+	_ "test/ff"
+)
+
+func main(){
+	fmt.Println("calling main()")
+
+}
+Result:
+calling a()
+init ff
+calling main()
+||
+Chirpstack-network-server:
+main.go->
+log "github.com/sirupsen/logrus"  //Package logrus is a structured logger for Go, completely API compatible with the standard library logger.
+"google.golang.org/grpc/grpclog"  //Package grpclog defines logging for grpc.
+                                  //All logs in transport and grpclb packages only go to verbose level 2. All logs in other packages in grpc are logged in spite 
+                                  // of the verbosity level.
+                                  // In the default logger, severity level can be set by environment variable GRPC_GO_LOG_SEVERITY_LEVEL, verbosity level can be set by 
+                                   //GRPC_GO_LOG_VERBOSITY_LEVEL.
+"google.golang.org/grpc/resolver"  //Package resolver defines APIs for name resolution in gRPC. All APIs in this package are experimental
+
+"github.com/brocaar/chirpstack-network-server/cmd/chirpstack-network-server/cmd" 
+||
+sed :
+find . -name “*.go” -exec sed -n -r ‘/log\..*[cC]hirpstack.*/s/[cC]hirpstack/easyfetch/p’ {} \;
+Grep:查找某目录下包含关键字内容的文件
+grep  -r “[^\/]chirpstack” .
+详见problem 'find.*'
+

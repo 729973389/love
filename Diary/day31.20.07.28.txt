@@ -1,0 +1,112 @@
+||today I have to write a set of .service file to control the lifecycle of the chirpstack.
+$ touch /etc/systemd/system/lora-network-server.service
+$vim /etc/systemd/system/lora-net-network-server.service
+$
+[Unit]
+Description=Lora Network Server
+Wants=network-online.target
+After=net.target
+
+[Service]
+User=wuff
+Group=wuff
+WorkingDirectory=/opt/easyfetch/lora-network-server/build
+ExecStart=/opt/easyfetch/lora-network-server/build/lora-network-server
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+Alias=lns.service
+///[Unit] The [Unit] section of a .service file contains the description of the unit itself,
+and information about its behavior and its dependencies: (to work correctly a service can depend on another one).Here we discuss some of the most relevant options which can be used in this section
+The "Description" option !    //First of all we have the Description option. By using this option we can provide a description of the unit. The description will then appear, for example, when calling the systemctl command, which returns an overview of the status of systemd.
+The "Wants" option !   //soft dependencies,a unit (a service ) can depend on other units.
+The "After" option !   //By using the After option, we can state that our unit should be started after the units we provide in the form of a space-separated list.
+[Service] specify things as the command to be executed when the service is started, or the type of the service itself.
+A service can be started, stopped, restarted or reloaded
+The "Execstart" option //The command to be executed when a service starts
+The argument passed to the option can also be the path to a script.  Optionally, we can declare commands to be executed before and after the service is started, by using the " ExecStartPre " and "ExecStartPost" options respectively. 
+in a similar fashion,we can specify the command using "ExecStop" and "ExecReload"  "ExecStopPost" option.
+The type of the service 
+The "Type" option defined the type of the service ，which of those are [simple forking oneshot dbus notify]
+The default type of a service is simple.When this type of service is set, the command declared in ExecStart is considered to be the main process/service.
+The forking type works differently: the command provided with ExecStart is expected to fork and launch a child process, which will become the main process/service. The parent process it's expected to die once the startup process is over.
+The oneshot type is used as the default if the Type and ExecStart options are not defined.
+The next type of service is dbus. If this type of service is used, the daemon is expected to get a name from Dbus, as specified in the BusName option, which in this case, becomes mandatory. For the rest it works like the simple type. Consequent units, however, are launched only after the DBus name is acquired.
+Another process works similarly to simple, and it is notify: the difference is that the daemon is expected to send a notification via the sd_notify function. Only once this notification is sent, consequent units are launched.
+ RestartSec: by using this option, we can setup the amount of time (by default in seconds) systemd should wait before restarting a service. A timespan can also be used as a value for this option, as "5min 20s"./////The TimeoutStartSec and TimeoutStopSec options can be used to specify, respectively, the timeout for a service startup and stop, in seconds. In the first case, if after the specified timeout the daemon startup process it's not completed, it will be considered to be failed.
+
+In the second case, if a service is to be stopped but is not terminated after the specified timeout, first a SIGTERM and then, after the same amount of time, a SIGKILL signal are sent to it. Both options accepts also a timespan as a value and can be configured at once, with a shortcut: TimeoutSec. If infinity is provided as a value, the timeouts are disabled.
+
+Finally, we can setup the limit for the amount of time a service can run, using the RuntimeMaxSec. If a service exceeds this timeout, it's terminated and considered as failed.////
+[install]
+In the [install] section, we can use options related to the service installation. 
+Alias can specify a list of alias be used fir service when using the systemctl commands.
+The "WantedBy" option , In our case, then, the multi-user target, when reached, should include our service.
+\\
+And then start the service using:
+1.systemctl daemon-reload
+2.systemctl enable lns.service
+3.systemctl start lns.service
+4.systemctl status lns.service
+||连同权限属性一起复制：
+$ cp -p src dst
+$cp - r src dst 复制目录
+||programing shell scripts:
+#!/bin/sh
+sudo systemctl daemon-reload
+sudo systemctl enable lora-network-server.service
+sudo systemctl enable lora-application-server.service
+sudo systemctl start lora-network-server.service
+sudo systemctl start lora-application-server.service
+sudo systemctl status lora-network-server.service
+sudo systemctl status lora-application-server.service
+||
+$ grep -r "chirpstack" /var/log/syslog
+$ grep -r '.*[cC].*' .
+||
+.yml文件
+yaml语言或者说规范可以边学.yml文件，和json一样是配置文件。
+编写规则：
+1.大小写敏感！
+2.使用缩进表示层级关系，json使用{}嵌套表示层级。
+3.#表示注释
+数据结构：
+不用频繁地写{} [] ,字符串也不需要加引号（无论是单引号还是双引号）。
+对象：
+# conf.yml
+animal: pets
+hash: { name: Steve, foo: bar }
+转化为json为：
+{
+    { "animal": "pets" },
+    { "hash": { "name": "Steve", "foo": "bar" } }
+}
+数组：
+# conf.yml
+Animal:
+-Cat
+-Dog
+-Fxc
+-Lxd
+转为json为：
+{"Animal":["Cat","Dog","Fxc","Lxd"]}
+字符串：
+#conf.yml
+str:wuff
+str:'内容:字符串'
+~表示null!
+||
+goreleaser:
+install: $ sudo snap install --classic goreleaser
+GoReleaser is a release automation tool for Go projects. The goal is to simplify the build, release and publish steps while providing variant customization options for all steps.
+Run goreleaser init to create an example .goreleaser.yaml file:
+$ goreleaser init 
+• Generating .goreleaser.yml file   • config created; please edit accordingly to your needs file=.goreleaser.yml
+$ goreleaser --snapshot --skip-publish --rm-dist
+Environment:
+||
+cp很多文件:
+$ cp -p /etc/systemd/system/lora-*-*.service .
+

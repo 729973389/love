@@ -1,0 +1,15 @@
+今天做了华为IoTEdge的发送接收功能.首先订阅的功能流程如下：	1.定义一个mqtt.MessageHandler的messageHandler方法$var messageHandler mqtt.MessageHandler = func(client mqtt.Client,message mqtt.Message)$来作为订阅函数client.Subscribe($topic,$Qos,$retained,$MessafeHandler)的消息处理，其中message结构体（// Message defines the externals that a message implementation must support
+// these are received messages that are passed to the callbacks, not internal
+// messages）封装了从订阅的topic得到的信息如：Duplicate() bool（重复性）
+	Qos() byte（安全系数）
+	Retained() bool（保留性）
+	Topic() string（主题）
+	MessageID() uint16（消息ID）
+	Payload() []byte（从订阅的topic收到的元数据）
+	Ack()（确认）
+接到消息后将payload根据特定的结构体使用json.Umarshal($payload []byte,$message struct) 来将传递进去的数据结构赋值，并将得到的Interval参数，即commands.Paras.Interval参数赋值给全局变量signal来控制捕获视频的间隔和停止动作，通过创建一个goroutine，在一个for无限循环里判断全局变量signal的值大小，如果值==0，则停止capturing,并将这一条消息传给无缓冲channel，同时将全局变量signal变为-1，如果signal>0,则time.sleep对应的时间，然后再获取当前帧，并将当前帧的存储地址传给无缓冲通道channel；如果全局变量signal的值大小==-1，此次的上一次signal值大小为0，则不停的time.sleep，直到signal值大小被接收到的消息改变为>0；这次的循环有一个知识点（！continue跳出这一次循环，进入下一次循环；break跳出循环体；return跳出所在的函数！）；而无缓冲通道另一头为一个无限for循环，循环体里从无缓冲通道channel接收message并通过Pop（）函数将其发布，由于是无缓冲通道，所以控制了向通道发送消息的操作，即上一个goroutine判断全局变量signal并向通道穿递捕获的值，从而控制了发送goroutine的动作，因为无缓冲通道双方必须同步，所以当双方没有就绪时，接收或向通道传递参数都会阻塞，直到双方同时就绪。值得注意的是switch语句可以不写参数，从而在case中用类似if的条件判断句。
+而对于mqtt的subscribe，它默认是一直从message通道中拷贝一份信息进行读取的，所以理论上在没必要单独开一个goroutine，但是这样会阻塞subscribe之后的代码块，所以我还是选择了单独开了一个goroutine，即go subscribe（client）其中的subscribe函数是单独写
+了一个订阅函数，里面固定了topic，Qos，retained，callback，只需要传递进去客户端实体就可以完成订阅操作，而一接收到消息则会启动callback函数对消息进行处理。而对于命令的返回，则是通过读取message结构体的Topic来获得它的地址，直接在callback函数中
+调用Publish函数，topic为从message读取到的topic，qos为0，retained为false，message为在命令中定义的结构体并Marshal化的json结构体，从而可以让IoT平台收到上行命令得知它之前发送的消息被收到了。（！！由于下行topic末尾为通配符，因为并不知道具体的命令id，而上行的topic格式和下行的通配符前面的格式一样，造成了下行topic接收到了上行topic，从而无限循环，解决方法是加一个条件判断，判断是否是上行topic，如果是则return，跳出该次callback函数！！）
+  
+
