@@ -1,0 +1,8 @@
+problem:
+I want to go build a .exe file that can run in windows system,however my go
+build environment is ubuntu.
+why:
+different system has different control set ,so they cant fit each other
+How to solve it:
+$ CGO_ENALBED=0 GOOS=windows GOARCH=amd64 go build -o main main.go
+
