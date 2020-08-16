@@ -15,7 +15,7 @@ import (
 
 var urlFalg = flag.String("url", "localhost:43211/hub", "set a specific url to connect")
 
-func init(){
+func init() {
 	flag.Parse()
 }
 func Connect() {
@@ -23,10 +23,9 @@ func Connect() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	var connCh = make(chan *websocket.Conn, 1)
-	var pingCh = make (chan int,1)
+	var pingCh = make(chan int, 1)
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
-
 	MyDialer := &websocket.Dialer{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -44,17 +43,17 @@ func Connect() {
 			log.Println(err)
 			return err
 		}
-		pingCh<-1
+		pingCh <- 1
 		return nil
 	})
 	defer conn.Close()
 	connCh <- conn
 	go func() {
-		for ;;<-pingCh {
+		for ; ; <-pingCh {
 
 			<-connCh
 			SendPing(conn)
-			connCh<-conn
+			connCh <- conn
 
 		}
 	}()
@@ -96,8 +95,8 @@ func Connect() {
 	for {
 		mt, message, err := conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err,websocket.CloseGoingAway){
-				log.Println("err : ",err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+				log.Println("err : ", err)
 
 			}
 			break
@@ -116,11 +115,12 @@ func Connect() {
 
 func SendPing(conn *websocket.Conn) {
 	log.Println("sendPing")
-	err := conn.WriteMessage(websocket.PingMessage,nil)
+	err := conn.WriteMessage(websocket.PingMessage, nil)
 	if err != nil {
-		log.Println("sendPing",err)
+		log.Println("sendPing", err)
 	}
 }
+
 //func GetTime() []byte {
 //	t := time.Now().UTC().Unix()
 //	s := fmt.Sprint(time.Unix(t, 0).UTC())
