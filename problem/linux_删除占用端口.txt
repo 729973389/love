@@ -1,0 +1,4 @@
+80端口被占用：
+$netstat -tln 查看端口\f
+$lsfo -i :80   查看占用端口的进程\f
+$kill -9 $PID  通过pid杀死进程\f

@@ -1,0 +1,9 @@
+syntax="proto3";
+package protobuf;
+option go_package="";
+import "system.proto";
+message connect {
+  string id =1;
+  string password =2;
+  protobuf.SystemInfo systemInfo=3;
+}

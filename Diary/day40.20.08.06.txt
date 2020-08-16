@@ -1,0 +1,89 @@
+||解决df命令得出的结果匹配“/”
+由于df得出的根目录符号为"/ "，占用两个字节，所以当最后字符为"/ "时，取出其值
+$$
+package protobuf
+import(
+"os/exec" //Command(...string)   cmd.Stdout    cmd.Run()
+"bytes" //bytes.buffer.ReadString('\n')
+"log"  //Println  Fatal
+"strings" //Split   
+)
+
+func GetDickInfo()DiskInfo{
+//df
+cmd := exec.Command("df")
+var out bytes.Buffer
+cmd.Stdout=&out
+err := cmd.Run()
+if err != nil {
+log.Println(err)
+return DiskInfo{}
+}
+
+var rs =make([]string,0)
+for{
+line,err := out.ReadString('\n')
+if err != nil {
+break
+}
+token := strings.Split(line," ")
+ft := make([]string,0)
+		for _,v:=range token {
+			strings.Replace(v,"\t","",-1)
+			if v!=""{
+				ft=append(ft,v)
+			}
+			if len(v)==2 {
+				for _,j := range []byte(v) {
+					if j=='/'{
+						rs=append(ft,"")
+					}
+				}
+			}
+
+		}
+}
+
+return DiskInfo{Rate:rs[4],Used:rs[2],Free:rs[3]}
+}
+$$
+||ufw command to open firewall port
+ufw://The program is for managing a Linux firewall is ufw. It aims to provide an easy to use interface for the user/sysadmins and developers. For example:
+1.You can open/close ports with ufw allow command.
+2.Block an IPv4/IPv6 address.
+3.Delete existing firewall rules.
+4.Turn on or off firewall logs.
+5.And more.
+see status of firewall: $sudo ufw status verbose
+open tcp port : $sudo ufw allow 22/tcp
+open http/https port : $sudo ufw allow http;sudo ufw allow https
+open tcp&udp port sudo ufw allow 43211
+|advanced example:
+To allow IP address 192.168.1.10 access to port 22 for all protocols
+sudo ufw allow from 192.168.1.10 to any port 22
+Open port 74.86.26.69:443 (SSL 443 nginx/apache/lighttpd server) for all, enter:
+sudo ufw allow from any to 74.86.26.69 port 443 proto tcp
+To allows subnet 192.168.1.0/24 to Sabma services, enter:
+ufw allow from 192.168.1.0/24 to any app Samba
+You can find service info as follows:
+sudo ufw app list.
+||lsof :check if port is in use
+$ sudo lsof -i -p -n | grep LISTEN
+$ sudo lsof -i :22 //see specific port such as 22
+$sudo kill -9 PID //kill the process that in use of the port
+||tcpdump 抓包
+//网络数据包截获分析工具。支持针对网络层、协议、主机、网络或端口的过滤。并提供and、or、not等逻辑语句帮助去除无用的信息。
+$ tcpdump -i eno  //监听特定网卡
+$ tcpdump host 192.168.32.32 //监听特定主机与本机往来的通信包
+$ tcpdump src/dst host hostname
+$ tcpdump port 43211 //特定端口
+$ tcpdump tcp //监听tcp的数据包
+//(1)tcp: ip icmp arp rarp 和 tcp、udp、icmp这些选项等都要放到第一个参数的位置，用来过滤数据报的类型
+(2)-i eth1 : 只抓经过接口eth1的包
+(3)-t : 不显示时间戳
+(4)-s 0 : 抓取数据包时默认抓取长度为68字节。加上-S 0 后可以抓到完整的数据包
+(5)-c 100 : 只抓取100个数据包
+(6)dst port ! 22 : 不抓取目标端口是22的数据包
+(7)src net 192.168.1.0/24 : 数据包的源网络地址为192.168.1.0/24
+(8)-w ./target.cap : 保存成cap文件，方便用ethereal(即wireshark)分析
+$ tcpdump port 43211 -w ~wuff/Public/test/test.cap

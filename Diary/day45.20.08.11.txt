@@ -1,0 +1,190 @@
+||我发现的一种全新的逻辑，虽然有问题，但里面的一些东西还是值得回味一下的:)
+.
+.
+.
+go func() {
+   var last,now int64
+   for  {
+//
+      pingGet := <-pingCh
+      if pingCount==0 {
+         pingCount++
+         now=pingGet
+         continue
+      }
+      if pingGet>now {
+         last,now=now,pingGet
+      }
+      if now-last>int64(1000*(*interval)){
+         <-connCh
+         pongCh<-now
+         go func() {
+            time.Sleep(5 * time.Second)
+            if len(pongCh)==1{
+               c.Close()
+               return
+            }
+         }()
+         Ping(c)
+         connCh<-c
+      }
+   }
+}()
+||websocket : hub&client
+type Hub struct{
+Client map[*Client]bool //管理所有的client
+Register chan *Client    //注册client的通道
+UnRegister chan *Client   //注销client的通道
+Broadcast chan []byte  //广播的通道
+}
+//creat a Hub intance
+func New(Hub)*Hub{
+return &Hub{
+Client:make(map[*Client]bool),
+Register:make(chan *Client),
+UnRegister:make(chan *Client),
+Broadcast:make(chan []byte,256),
+}
+}
+func (h *Hub)Run(){
+for{
+select{
+//注册
+case c:=<-h.Register:
+if
+//注销 
+case c :=<-h.UnRegister:
+
+//广播:
+case message:=h.Broadcast:
+for c,_:=range h.Client{
+c.Send<-message
+}
+}
+}
+}
+
+type Client struct{
+Hub *Hub
+Send chan []byte //发送消息的协程接收此通道，完成发送。
+Conn *websocket.Conn
+}
+
+func(c *Client)Read(){
+defer c.Hub.UnRegister<-c
+if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait));err!=nil{}
+c.Conn.SetPingHandler(func(appData string)error{c.Conn.SetReadDeadline(time.Now().Add(pongWait))c.Send<-nil})
+c.Conn.SetPongHandler()
+for {
+//接收消息
+mt,message,err:=c.Conn.ReadMessage()
+switch mt {
+case 2:
+c.Send>-message
+
+}
+}
+}
+func (c *Client)Send(){
+//使用timer时钟来定时任务
+timer := time.NewTimer(pingPeriod)
+defer func(){
+timer.Stop()
+c.Hub.UnRegister<-c
+}
+for{
+select{
+case message,ok:=c.Send:
+err :=c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
+if err !=nil{}
+if ok!=nil{c.Conn.WriteMessage(websocket.CloseMessage,nil)return }
+c.Conn.WriteMessage(2,message)
+timer.Reset(pingPeriod)
+case <-timer.C:
+err:=c.Conn.SetDeadline(time.Now().Add(writeWait))
+if err != nil{}
+//如果指定时间没有发送消息，则回ping
+if err := c.Conn.WriteMessage(websocket.PingMessage,nil)
+}
+}
+}
+func ServeWs(h *Hub,w http.ResponseWriter,r *http.Request){
+conn,err :=websocket.UpGrader.Upgrade(w,r,nil)
+client :=&Client{
+Hub:h,
+Conn:conn,
+Send:make(chan []byte,256)//创建缓冲通道
+}
+client.Hub.Register<-client
+go client.Send() //确保只有一个协程发送消息
+go client.Read() //确保只有一个协程读取消息
+}
+//启动hub和client
+func main(){
+hub:=root.NewHub()
+go func hub.Run()
+http.HandleFunc("/hub",func(w http.ResponseWriter,r *http.Request){root.ServeWs(hub,w,r)})
+}
+
+||解析Hub&Client
+hub.go:
+Hub{
+clients map[*clients]bool //注册的客户端  
+broadcast chan []byte  //客户端的入站信息
+register chan *Client  注册来自客户端的请求
+unregister 注销来自客户端的请求
+}
+func newHub()*hub {} //new a hub 
+func (h *Hub ) run (){}
+///
+client.go
+const(
+writeWait,pongWait,pingPeriod,maxMessageSize
+)
+var(
+newline,space
+)
+var upgrade=websocket.Upgrader{}
+type Client struct{
+hub *Hub 
+conn *websocket.Conn  //websocket connection
+send chan []byte  //Buffered channel of outbound messages
+}
+conn.SetReadDeadline(time.Now().Add(pongWait))
+//func (c *Conn) SetReadDeadline(t time.Time) error
+SetReadDeadline sets the read deadline on the underlying network connection. After a read has timed out, the websocket connection state is corrupt and all future reads will return an error. A zero value for t means reads will not time out.
+//////
+func (c *Conn) SetReadDeadline(t time.Time) error
+SetReadDeadline sets the read deadline on the underlying network connection. After a read has timed out, the websocket connection state is corrupt and all future reads will return an error. A zero value for t means reads will not time out.
+////
+Package:
+time
+func (t Time) Add(d Duration) Time
+Add returns the time t+d.
+ 
+Example
+Code:
+start := time.Date(2009, 1, 1, 12, 0, 0, 0, time.UTC) afterTenSeconds := start.Add(time.Second * 10) afterTenMinutes := start.Add(time.Minute * 10) afterTenHours := start.Add(time.Hour * 10) afterTenDays := start.Add(time.Hour * 24 * 10)  fmt.Printf("start = %v\n", start) fmt.Printf("start.Add(time.Second * 10) = %v\n", afterTenSeconds) fmt.Printf("start.Add(time.Minute * 10) = %v\n", afterTenMinutes) fmt.Printf("start.Add(time.Hour * 10) = %v\n", afterTenHours) fmt.Printf("start.Add(time.Hour * 24 * 10) = %v\n", afterTenDays) 
+Output:
+start = 2009-01-01 12:00:00 +0000 UTC
+start.Add(time.Second * 10) = 2009-01-01 12:00:10 +0000 UTC
+start.Add(time.Minute * 10) = 2009-01-01 12:10:00 +0000 UTC
+start.Add(time.Hour * 10) = 2009-01-01 22:00:00 +0000 UTC
+start.Add(time.Hour * 24 * 10) = 2009-01-11 12:00:00 +0000 UTC
+//////
+Package:
+websocket
+func (c *Conn) SetReadDeadline(t time.Time) error
+SetReadDeadline sets the read deadline on the underlying network connection. After a read has timed out, the websocket connection state is corrupt and all future reads will return an error. A zero value for t means reads will not time out.
+////
+websocket.IsUnexpectedCloseError
+//func IsUnexpectedCloseError(err error, expectedCodes ...int) bool
+IsUnexpectedCloseError returns boolean indicating whether the error is a *CloseError with a code not in the list of expected codes.
+////
+time.NewTicker(d Duration)*ticker{}
+//NewTicker returns a new Ticker containing a channel that will send the time with a period specified by the duration argument. It adjusts the intervals or drops ticks to make up for slow receivers. The duration d must be greater than zero; if not, NewTicker will panic. Stop the ticker to release associated resources.
+ 
+Example
+ticker := time.NewTicker(time.Second) defer ticker.Stop() done := make(chan bool) go func() {     time.Sleep(10 * time.Second)     done <- true }() for {     select {     case <-done:         fmt.Println("Done!")         return     case t := <-ticker.C:         fmt.Println("Current time: ", t)     } }
+/////
+

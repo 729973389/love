@@ -1,0 +1,2 @@
+出差南京，其中需要在云服务器编译成windows可执行的.exe文件
+$ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o main man.go

@@ -1,0 +1,72 @@
+参考别人sacoo7的websocket
+||
+package root
+
+import (
+   "fmt"
+   "github.com/gorilla/websocket"
+   "sync"
+
+   //gowebsocket "github.com/sacOO7/GoWebsocket"
+   "github.com/wuff1996/edgeHub/internal/protobuf"
+   "log"
+   "net"
+   //"net/http"
+)
+
+const schema string = "ws"
+const host = "192.168.32.175"
+const port = "43210"
+var upgrader = websocket.Upgrader{}
+func Tcp(){
+tcpAddr, err := net.ResolveTCPAddr(schema, host+":"+port)
+if err != nil {
+// handle error
+}
+
+listener, err := net.ListenTCP("tcp", tcpAddr)
+if err != nil {
+// handle error
+}
+
+// listen for an incoming connection
+conn, err := listener.Accept()
+if err != nil {
+// handle error
+}
+
+// send message
+buf := protobuf.Connect{
+   Id: "wuff",
+   Password: "1996",
+}
+if _, err := conn.Write(protobuf.Getbuf(&buf)); err != nil {
+// handle error
+}
+// receive message
+var wg sync.WaitGroup
+wg.Add(1)
+ch := make(chan []byte)
+go func() {
+   defer wg.Done()
+   for  {
+
+      b := make([]byte, 512)
+      _,err = conn.Read(b[0:])
+      if err != nil {
+         // handle error
+         log.Println(err)
+      }
+      ch<-b
+   }
+}()
+go func() {
+   for  {
+      b := <-ch
+      fmt.Println(b)
+
+   }
+}()
+
+}
+

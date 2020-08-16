@@ -1,0 +1,50 @@
+ ||使用os.exec包执行命令并获取结果：
+$$
+package main
+import (
+"bytes" //bytes.Buffer
+"os/exec" //Command(...string) Stdout   cmd.Run()
+"strings"
+)
+
+func main () {
+//run the command "ps aux",and save the results in out
+cmd := exec.Command("ps","aux")
+var out bytes.Buffer
+cmd.Stdout(&out)
+err := cmd.Run()
+if err != nil {
+log.Fatal(err)
+}
+var process =make([]float32,0)
+//read the result one by line 
+for{
+line,err := out.ReadString('\n')
+if err != nil {
+break
+}
+//spilte every line message to a string slice
+tokens := strings.Splite(line," ")
+//ft save the filtered result 
+ft := make([]string,0)
+for _,t:=range tokens{
+strings.Replace(t,"\t","",-1)
+if t != ""{
+ft=append(ft,t)
+}
+}
+//save every line cpu information
+cpu,err := strconv(ParseFloat(ft[2],32)
+if err !=nil{
+cpu=0
+}
+process=append(process,cpu)
+}
+//sum up all cpu used
+var cpuTotal float32=0
+for _,cv := range process{
+cpuTotal+=cv
+}
+return cpuTotal
+}
+$$

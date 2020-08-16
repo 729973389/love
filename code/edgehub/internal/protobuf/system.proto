@@ -1,0 +1,22 @@
+syntax="proto3";
+package protobuf;
+option go_package="";
+message SystemInfo{
+  string OS=1;
+  string ARC=2;
+  int32 CPU=3;
+  string hostName=4;
+  repeated NetInterfaces NetInterfaces=5;
+}
+
+message NetInterfaces{
+  int32 Index=1;
+  int32 MTU=2;
+  string Name=3;
+  string HardwareAddr=4;
+  repeated string IPAddr=5;
+
+}
+
+
+

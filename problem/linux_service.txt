@@ -1,0 +1,24 @@
+problem:
+to write a simple service that control the process
+why:
+control the lifecycle of process
+how:
+1.template:
+[Unit]
+Description=
+Wants=network-online.target
+After=net.target
+
+[Service]
+WorkingDirectory=
+ExecStart=
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+Alias=
+
+///
+for more details ,see day31 
+

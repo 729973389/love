@@ -7,11 +7,20 @@ import (
 	"log"
 )
 
-func Getbuf (connect *Connect) []byte{
+func GetBuf (connect *Connect) []byte{
 	b,err := proto.Marshal(connect)
 	if err != nil {
 		log.Println(err)
 	}
 	return b
+}
 
+func ReadBuf (b []byte) Connect{
+	c := Connect{}
+	err := proto.Unmarshal(b,&c)
+	if err != nil {
+		log.Println(err)
+
+	}
+	return c
 }

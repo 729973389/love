@@ -1,0 +1,8 @@
+day37:sacoo7/websocket
+day38:mv tar  time.Unix runtime.GOOS/GOARCH/GOMAXPROCS(0)/HOSTNAME
+day39:os.exec获取系统cpu信息
+day40:
+ufw 防火墙
+tcpdump抓包
+os.exec获取disk信息
+day41: 
