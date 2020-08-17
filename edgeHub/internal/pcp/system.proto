@@ -1,6 +1,6 @@
 syntax = "proto3";
-package protobuf;
-option go_package = "";
+package pcp;
+option go_package = "pcp";
 import "cpuInfo.proto";
 import "memInfo.proto";
 import "diskInfo.proto";
@@ -9,8 +9,10 @@ message SystemInfo{
   string ARC = 2;
   int32 CPUNum = 3;
   string hostName = 4;
-  protobuf.CPUInfo CPUInfo = 6;
-  protobuf.MEMInfo MEMInfo = 7;
-  protobuf.DiskInfo DiskInfo = 8;
+  pcp.CPUInfo CPUInfo = 6;
+  pcp.MEMInfo MEMInfo = 7;
+  pcp.DiskInfo DiskInfo = 8;
 }
+
+
 

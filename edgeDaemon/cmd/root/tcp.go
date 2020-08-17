@@ -26,6 +26,7 @@ func Connect() {
 	var pingCh = make(chan int, 1)
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
+
 	MyDialer := &websocket.Dialer{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
