@@ -1,0 +1,6 @@
+syntax = "proto3";
+package pcp;
+option go_package = "pcp";
+message CPUInfo {
+  float CPUUsed = 1;
+}

@@ -1,0 +1,13 @@
+.PHONY:run dlv build clean dev
+dev:
+	touch edgeHub.log
+run:
+	./edgeHub >edgeHub.log
+dlv:
+	go build cmd/main.go
+	sh dlv.sh
+build:
+	go build -o build/edgeHub cmd/main.go
+clean:
+	@rm http.json
+	@rm edgeHub

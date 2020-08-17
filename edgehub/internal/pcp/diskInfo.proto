@@ -1,0 +1,8 @@
+syntax = "proto3";
+package pcp;
+option go_package = "pcp";
+message DiskInfo{
+  string Used = 1;
+  string Free = 2;
+  string Rate = 3;
+}
