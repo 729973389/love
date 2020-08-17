@@ -1,8 +1,0 @@
-syntax="proto3";
-package protobuf;
-import "system.proto";
-message InterfaceEdge{
-  string serialNumber=1;
-  protobuf.SystemInfo data=2;
-
-}
