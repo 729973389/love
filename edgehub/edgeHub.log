@@ -1,0 +1,95 @@
+listening :43211
+{
+ "serialNumber": "1",
+ "data": {
+  "OS": "linux",
+  "ARC": "amd64",
+  "CPUNum": 1,
+  "hostName": "ubuntu",
+  "CPUInfo": {
+   "CPUUsed": 1.1
+  },
+  "MEMInfo": {
+   "Total": "2017460",
+   "Used": "922420",
+   "Free": "296228",
+   "Buffer": "180112"
+  },
+  "DiskInfo": {
+   "Used": "12663460",
+   "Free": "4823540",
+   "Rate": "73%"
+  }
+ }
+}
+{
+ "id": "lxd",
+ "password": "wuff1996",
+ "systemInfo": {
+  "OS": "linux",
+  "ARC": "amd64",
+  "CPUNum": 1,
+  "hostName": "ubuntu",
+  "CPUInfo": {
+   "CPUUsed": 1.1
+  },
+  "MEMInfo": {
+   "Total": "2017460",
+   "Used": "924744",
+   "Free": "285788",
+   "Buffer": "180228"
+  },
+  "DiskInfo": {
+   "Used": "12663500",
+   "Free": "4823500",
+   "Rate": "73%"
+  }
+ }
+}
+{
+ "id": "lxd",
+ "password": "wuff1996",
+ "systemInfo": {
+  "OS": "linux",
+  "ARC": "amd64",
+  "CPUNum": 1,
+  "hostName": "ubuntu",
+  "CPUInfo": {
+   "CPUUsed": 1.1
+  },
+  "MEMInfo": {
+   "Total": "2017460",
+   "Used": "924508",
+   "Free": "284292",
+   "Buffer": "180384"
+  },
+  "DiskInfo": {
+   "Used": "12663592",
+   "Free": "4823408",
+   "Rate": "73%"
+  }
+ }
+}
+{
+ "serialNumber": "1",
+ "data": {
+  "OS": "linux",
+  "ARC": "amd64",
+  "CPUNum": 1,
+  "hostName": "ubuntu",
+  "CPUInfo": {
+   "CPUUsed": 1.1
+  },
+  "MEMInfo": {
+   "Total": "2017460",
+   "Used": "926352",
+   "Free": "278988",
+   "Buffer": "181524"
+  },
+  "DiskInfo": {
+   "Used": "12664120",
+   "Free": "4822880",
+   "Rate": "73%"
+  }
+ }
+}

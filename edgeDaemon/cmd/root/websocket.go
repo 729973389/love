@@ -12,6 +12,8 @@ import (
 )
 
 var url = GetConfig().Url
+var token=GetConfig().Token
+var id = GetConfig().SerialNumber
 
 type WS struct {
 	Conn     *websocket.Conn
@@ -76,14 +78,18 @@ func (w *WS) Write() {
 				}
 				if err := w.Conn.WriteMessage(websocket.PongMessage, nil); err != nil {
 					log.WithField("pong", err)
+					continue
 				}
+				log.Println("pong")
 			case ping:
 				if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
 					log.WithField("set write deadline", err)
 				}
 				if err := w.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					log.WithField("ping", err)
+					continue
 				}
+				log.Println("ping")
 			}
 			timer.Reset(pongTime)
 			timerCount = 0
@@ -169,13 +175,15 @@ func (w *WS) LoopInfo() {
 
 	}()
 	for {
+		//test
+		log.Println(url,token,id)
+		//
 		systemInfo := protobuf.GetSystemInfo()
-		connectInfo := &protobuf.Connect{
-			SystemInfo: &systemInfo,
-			Id:         "lxd",
-			Password:   "wuff1996",
+		edgeInfo := &protobuf.EdgeInfo{
+			SerialNumber: id,
+			Data: &systemInfo,
 		}
-		message := protobuf.GetBuf(connectInfo)
+		message := protobuf.GetBufEdgeInfo(edgeInfo)
 		w.Send <- message
 		time.Sleep(30 * time.Minute)
 	}

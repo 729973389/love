@@ -1,4 +1,6 @@
-.PHONY:run dlv build clean dev
+.PHONY:run dlv build clean dev install
+install:
+	sudo sh install.sh
 dev:
 	touch edgeHub.log
 run:

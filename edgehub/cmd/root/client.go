@@ -139,8 +139,8 @@ func (c *Client) readPump() {
 			}
 			switch mt {
 			case websocket.BinaryMessage:
-				connBuf := protobuf.ReadBuf(message)
-				b, _ := json.MarshalIndent(&connBuf, "", " ")
+				edgeBuf := protobuf.ReadEdge(message)
+				b, _ := json.MarshalIndent(&edgeBuf, "", " ")
 				fmt.Println(string(b))
 				c.Send <- message
 			}

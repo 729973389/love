@@ -1,12 +1,16 @@
 #!/sbin/sh
+remoteUrl=${1}
+installerToken=${2}
+id=${3}
 edgeFlag=0
 edgeDaemonWorkplace="/opt/easyfetch/edgeDaemon"
-if [ ! -d ${edgeDaemonWorkplace} ]; then
-  mkdir -p ${edgeDaemonWorkplace}
+if [ -d ${edgeDaemonWorkplace} ]; then
+	rm -rf ${edgeDaemonWorkplace} || echo "ERROR: REMOVE WORKPLACE ERR"
 else
-	  echo "WARNING: ${edgeDaemonWorkplace} exists"
+       	mkdir -p ${edgeDaemonWorkplace} || echo "creat working directory error"
+
 fi
-cp ./* ${edgeDaemonWorkplace}
+cp ./* ${edgeDaemonWorkplace} || echo "ERROR:can't copy files"
 if [ -e "${edgeDaemonWorkplace}/edgeDaemon" ]; then
 	edgeFlag=1
 	if [ -e "${edgeDaemonWorkplace}/edgeDaemon.service" ]; then 
@@ -23,4 +27,7 @@ if [ ${edgeFlag} -eq 2 ]; then
 	echo "INFO: install success!"
 else
 		echo "ERROR: install faild"
+fi
+if [ -e "${edgeDaemonWorkplace}/jsonCreater" ]; then 
+	cd ${edgeDaemonWorkplace};${edgeDaemonWorkplace}/jsonCreater "-url" ${remoteUrl} "-token" ${installerToken} "-id" ${id}||echo "ERROR: create configfile failed"
 fi

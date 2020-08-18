@@ -34,7 +34,7 @@ type Client struct {
 
 var urlFalg = flag.String("url", "192.168.32.150:8081", "set a specific url to connect")
 
-func (c *Client) Send() {
+func (c *Client) SendData() {
 
 	flag.Parse()
 	s := protobuf.GetSystemInfo()
@@ -64,7 +64,7 @@ func Serve(s *Schedule) {
 		case url := <-c.Schedule.Action:
 			switch url {
 			case c.Schedule.SendData:
-				c.Send()
+				c.SendData()
 			}
 		}
 

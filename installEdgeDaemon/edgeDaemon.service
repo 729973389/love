@@ -1,0 +1,15 @@
+[Unit]
+Description=easyfetch edgeDaemon 
+Wants=network-online.target
+After=net.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/easyfetch/edgeDaemon
+ExecStart=/opt/easyfetch/edgeDaemon/edgeDaemon
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
