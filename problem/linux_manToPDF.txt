@@ -1,0 +1,6 @@
+problem:
+I want to transform the mannul file to pdf so I can read it anywhere
+why:
+how:
+$ man -t ${shellname} | ps2pdf - ${outputfile.pdf}  
+//the flag "-t" means transform the result output to ps output,ps2pdf(by the way,it's pronounce is ps to pdf :)hhh ) get the ps input and transform it to pdf file.

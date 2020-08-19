@@ -2,32 +2,31 @@
 remoteUrl=${1}
 installerToken=${2}
 id=${3}
-edgeFlag=0
+flag=1
 edgeDaemonWorkplace="/opt/easyfetch/edgeDaemon"
 if [ -d ${edgeDaemonWorkplace} ]; then
-	rm -rf ${edgeDaemonWorkplace} || echo "ERROR: REMOVE WORKPLACE ERR"
+	rm -rf ${edgeDaemonWorkplace} || echo "ERROR: REMOVE WORKPLACE ERR" || flag=0
 else
-       	mkdir -p ${edgeDaemonWorkplace} || echo "creat working directory error"
+       	mkdir -p ${edgeDaemonWorkplace} || echo "creat working directory error" || flag=0
 
 fi
-cp ./* ${edgeDaemonWorkplace} || echo "ERROR:can't copy files"
+cp ./* ${edgeDaemonWorkplace} || echo "ERROR:can't copy files" || flag=0
+if [ -e "${edgeDaemonWorkplace}/jsonCreater" ]; then
+        cd ${edgeDaemonWorkplace};${edgeDaemonWorkplace}/jsonCreater "-url" ${remoteUrl} "-token" ${installerToken} "-id" ${id}||echo "ERROR: create configfile failed" || flag=0
+fi
+
 if [ -e "${edgeDaemonWorkplace}/edgeDaemon" ]; then
-	edgeFlag=1
 	if [ -e "${edgeDaemonWorkplace}/edgeDaemon.service" ]; then 
-		edgeFlag=2
-		cp ${edgeDaemonWorkplace}/edgeDaemon.service /etc/systemd/system
-		systemctl daemon-reload;systemctl enable edgeDaemon.service;systemctl restart edgeDaemon;
+		cp ${edgeDaemonWorkplace}/edgeDaemon.service /etc/systemd/system || echo "ERROR: CANT COPY SERVER" || flag=0
+		systemctl daemon-reload;systemctl enable edgeDaemon.service;systemctl restart edgeDaemon || echo "ERROR: CANT START THE SERVICE" || flag=0
 	else
 		echo "ERROR: no edgeDaemon.service"
 	fi
 else
 	echo "ERROR: no edgeDaemon file"
 fi
-if [ ${edgeFlag} -eq 2 ]; then
+if [ ${edgeFlag} -eq 1 ]; then
 	echo "INFO: install success!"
 else
 		echo "ERROR: install faild"
-fi
-if [ -e "${edgeDaemonWorkplace}/jsonCreater" ]; then 
-	cd ${edgeDaemonWorkplace};${edgeDaemonWorkplace}/jsonCreater "-url" ${remoteUrl} "-token" ${installerToken} "-id" ${id}||echo "ERROR: create configfile failed"
 fi
