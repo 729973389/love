@@ -16,6 +16,8 @@ func SetConfig() {
 	configSocket := &config.Url{}
 	configSocket.Socket = "43211"
 	configSocket.SendData = "/api/v2/edge/data/create"
+	configSocket.PutStatus = "/api/v2/edge/update/online"
+	configSocket.Url = "http://192.168.32.150:8081"
 	bs, err := json.MarshalIndent(configSocket, "", " ")
 	if err != nil {
 		log.WithError(err).WithField(socketFile, "Error")

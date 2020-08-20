@@ -12,31 +12,27 @@ import (
 )
 
 type HttpClient struct {
-	//Schedule *Schedule
 	Hub *Hub
 }
 
-//func Run(schedule *Schedule) {
-//	c := &Client{
-//		schedule,
-//		make(map[string]*Client),
-//		make(chan string,10),
-//	}
-//	for _,v:=range c.Schedule.Config{
-//		select {
-//		case url := <-c.Schedule.Action:
-//
-//
-//		}
-//
-//	}
-//}
+func Serve(hub *Hub) {
+	hc := &HttpClient{Hub: hub}
 
-var urlFalg = flag.String("url", "192.168.32.150:8081", "set a specific url to connect")
+	for {
+		select {
+		case message := <-hc.Hub.HttpMessage:
+			hc.SendData(message)
+		case c := <-hc.Hub.HttpRegister:
+			hc.PutStatus(c.SerialNumber, true)
+		case c := <-hc.Hub.HttpUnRegister:
+			hc.PutStatus(c.SerialNumber, false)
+
+		}
+	}
+}
 
 func (c *HttpClient) SendData(b []byte) {
 
-	flag.Parse()
 	sysInfo := &protobuf.InterfaceEdge{}
 	if err := proto.Unmarshal(b, sysInfo); err != nil {
 		log.Error(err)
@@ -46,7 +42,7 @@ func (c *HttpClient) SendData(b []byte) {
 		log.Println("jsonMarshal: ", err)
 	}
 	fmt.Println(string(b))
-	resp, err := http.Post("http://"+*urlFalg+GetConfig().SendData, "application/json", bytes.NewReader(b))
+	resp, err := http.Post(GetConfig().Url+GetConfig().SendData, "application/json", bytes.NewReader(b))
 	if err != nil {
 		log.Println("Get: ", err)
 		return
@@ -55,24 +51,29 @@ func (c *HttpClient) SendData(b []byte) {
 	respBuf := make([]byte, 256)
 	resp.Body.Read(respBuf)
 	log.Println(string(respBuf))
-
 }
 
-func Serve(hub *Hub) {
-	c := &HttpClient{Hub: hub}
-
-	for {
-		select {
-		//case url := <-c.Schedule.Action:
-		//switch url {
-		//case c.Schedule.SendData:
-		//	c.SendData()
-		//}
-		case message := <-c.Hub.HttpMessage:
-			c.SendData(message)
-
-			//}
-
-		}
+func (c *HttpClient) PutStatus(number string, status bool) {
+	var rout = GetConfig().Url + GetConfig().PutStatus
+	flag.Parse()
+	httpInfo := &protobuf.HttpOnline{
+		SerialNumber: number,
+		Online:       status,
 	}
+	b, err := json.MarshalIndent(httpInfo, "", " ")
+	if err != nil {
+		log.Warning(err)
+	}
+	log.Println(string(b))
+	request, err := http.NewRequest("PUT", rout, bytes.NewReader(b))
+	request.Header.Add("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		log.Warning(err)
+	}
+	defer resp.Body.Close()
+	var respBuf = make([]byte, 256)
+	resp.Body.Read(respBuf)
+	log.Println(string(respBuf))
+
 }

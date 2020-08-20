@@ -1,12 +1,12 @@
 package root
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
 	http "net/http"
+	"sync"
 	"time"
 )
 
@@ -17,10 +17,11 @@ const (
 )
 
 type Client struct {
-	Hub      *Hub
-	Send     chan []byte
-	Conn     *websocket.Conn
-	PingPong chan int
+	Hub          *Hub
+	Send         chan []byte
+	Conn         *websocket.Conn
+	PingPong     chan int
+	SerialNumber string
 }
 
 var UpGrader = websocket.Upgrader{}
@@ -100,6 +101,7 @@ func (c *Client) WritePump() {
 
 //read message from client
 func (c *Client) readPump() {
+	var once sync.Once
 	//unregister client and close the websocket connection
 	defer func() {
 		log.Warning("closing read: ", c.Conn.RemoteAddr())
@@ -140,8 +142,11 @@ func (c *Client) readPump() {
 			switch mt {
 			case websocket.BinaryMessage:
 				edgeBuf := protobuf.ReadEdge(message)
-				b, _ := json.MarshalIndent(&edgeBuf, "", " ")
-				fmt.Println(string(b))
+				once.Do(func() {
+					c.SerialNumber = edgeBuf.SerialNumber
+					c.Hub.HttpRegister <- c
+					fmt.Println(c.SerialNumber)
+				})
 				c.Send <- message
 				c.Hub.HttpMessage <- message
 			}

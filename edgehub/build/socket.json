@@ -1,4 +1,6 @@
 {
+ "url": "http://192.168.32.150:8081",
  "sendData": "/api/v2/edge/data/create",
- "Socket": "43211"
+ "socket": "43211",
+ "putStatus": "/api/v2/edge/update/online"
 }
