@@ -1,0 +1,4 @@
+problem:
+when I set a bool variable to false ,the json will be omitempty.
+why:.pb.go declares that json:"status,omitempty".
+how:just remove the ,omitempty :).If there is too much to change ,just use stream editer (sed),such as -> $ find . -name “*.pb.go” -exec sed -i ‘s/,omitempty//g’ {} \; 
