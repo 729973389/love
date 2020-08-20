@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
-	"net/http"
+	http "net/http"
 	"time"
 )
 
@@ -60,7 +60,7 @@ func (c *Client) WritePump() {
 				if err != nil {
 					log.Warning(err)
 				}
-				log.Println("pong: ",c.Conn.RemoteAddr())
+				log.Println("pong: ", c.Conn.RemoteAddr())
 				timer.Reset(pingPeriod)
 				timerCount = 0
 			case websocket.PongMessage:
@@ -102,14 +102,14 @@ func (c *Client) WritePump() {
 func (c *Client) readPump() {
 	//unregister client and close the websocket connection
 	defer func() {
-		log.Warning("closing read: ",c.Conn.RemoteAddr())
+		log.Warning("closing read: ", c.Conn.RemoteAddr())
 		c.Hub.UnRegister <- c
 	}()
 	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 		log.Println("set read deadline:", err)
 	}
 	c.Conn.SetPingHandler(func(appData string) error {
-		err:=c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		err := c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		if err != nil {
 			log.Warning(err)
 		}
@@ -118,8 +118,8 @@ func (c *Client) readPump() {
 		return nil
 	})
 	c.Conn.SetPongHandler(func(appData string) error {
-		err:=c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-		if err!=nil{
+		err := c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		if err != nil {
 			log.Warning(err)
 		}
 		log.Println("receive pong: ", appData)
@@ -143,6 +143,7 @@ func (c *Client) readPump() {
 				b, _ := json.MarshalIndent(&edgeBuf, "", " ")
 				fmt.Println(string(b))
 				c.Send <- message
+				c.Hub.HttpMessage <- message
 			}
 		}
 	}

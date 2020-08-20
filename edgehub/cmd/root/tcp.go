@@ -1,15 +1,11 @@
 package root
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	websocket "github.com/gorilla/websocket"
-	protobuf "github.com/wuff1996/edgeHub/internal/protobuf"
 	"log"
 	"net/http"
-	"sync"
-	"time"
 )
 
 var interval = flag.Int("interval", 1, " receive ping longest interval ")
@@ -20,78 +16,79 @@ var upgrader = websocket.Upgrader{} // use default options
 var pin = websocket.PingMessage
 var pong = websocket.PongMessage
 
-func echo(w http.ResponseWriter, r *http.Request) {
-	var wg sync.WaitGroup
-	wg.Add(2)
-	var connCh = make(chan *websocket.Conn, 1)
-	//var pongCh = make (chan int,1)
-	//var pingCh=make(chan int,1)
-	//pingCh<-1
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-	c.SetPingHandler(func(appData string) error {
-		c.SetReadDeadline(time.Now().Add(1 * time.Minute))
-		log.Println("receiving ping " + appData)
-		//<-pingCh
-		//<-connCh
-		//err := c.WriteMessage(websocket.PongMessage,nil)
-		//connCh<-c
-		//if err != nil {
-		//	log.Println("pong: ",err)
-		//	return err
-		//}
-		return nil
-	})
-	c.SetPongHandler(func(appData string) error {
-		log.Println("receive pong: ", appData)
-		//if len(pingCh)>0{
-		//	<-pongCh
-		//}
-		return nil
-	})
-	defer c.Close()
-	connCh <- c
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Println("read: ", err)
-			}
-			break
-		}
-		switch mt {
-		case websocket.BinaryMessage:
-			connBuf := protobuf.ReadBuf(message)
-			jsonBuf, err := json.MarshalIndent(&connBuf, "", " ")
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			log.Println(string(jsonBuf))
-			<-connCh
-			err = c.WriteMessage(websocket.BinaryMessage, message)
-			connCh <- c
-			if err != nil {
-				log.Println("writeMessage: ", err)
-			}
-		}
-	}
-}
+//func echo(w http.ResponseWriter, r *http.Request) {
+//	var wg sync.WaitGroup
+//	wg.Add(2)
+//	var connCh = make(chan *websocket.Conn, 1)
+//	//var pongCh = make (chan int,1)
+//	//var pingCh=make(chan int,1)
+//	//pingCh<-1
+//	c, err := upgrader.Upgrade(w, r, nil)
+//	if err != nil {
+//		log.Print("upgrade:", err)
+//		return
+//	}
+//	c.SetPingHandler(func(appData string) error {
+//		c.SetReadDeadline(time.Now().Add(1 * time.Minute))
+//		log.Println("receiving ping " + appData)
+//		//<-pingCh
+//		//<-connCh
+//		//err := c.WriteMessage(websocket.PongMessage,nil)
+//		//connCh<-c
+//		//if err != nil {
+//		//	log.Println("pong: ",err)
+//		//	return err
+//		//}
+//		return nil
+//	})
+//	c.SetPongHandler(func(appData string) error {
+//		log.Println("receive pong: ", appData)
+//		//if len(pingCh)>0{
+//		//	<-pongCh
+//		//}
+//		return nil
+//	})
+//	defer c.Close()
+//	connCh <- c
+//	for {
+//		mt, message, err := c.ReadMessage()
+//		if err != nil {
+//			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+//				log.Println("read: ", err)
+//			}
+//			break
+//		}
+//		switch mt {
+//		case websocket.BinaryMessage:
+//			connBuf := protobuf.ReadBuf(message)
+//			jsonBuf, err := json.MarshalIndent(&connBuf, "", " ")
+//			if err != nil {
+//				log.Println(err)
+//				return
+//			}
+//			log.Println(string(jsonBuf))
+//			<-connCh
+//			err = c.WriteMessage(websocket.BinaryMessage, message)
+//			connCh <- c
+//			if err != nil {
+//				log.Println("writeMessage: ", err)
+//			}
+//		}
+//	}
+//}
 
 func Run() {
 	hub := NewHub()
 	go hub.Run()
+	go Serve(hub)
 	flag.Parse()
 	http.HandleFunc("/test", SendMsg)
-	http.HandleFunc("/echo", echo)
+	//http.HandleFunc("/echo", echo)
 	http.HandleFunc("/hub", func(w http.ResponseWriter, r *http.Request) {
 		Servews(hub, w, r)
 	})
 	fmt.Println("listening", *addr)
-	defer log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s",GetConfig().Socket), nil))
+	defer log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", GetConfig().Socket), nil))
 
 }
 

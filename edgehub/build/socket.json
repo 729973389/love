@@ -1,3 +1,4 @@
 {
+ "sendData": "/api/v2/edge/data/create",
  "Socket": "43211"
 }

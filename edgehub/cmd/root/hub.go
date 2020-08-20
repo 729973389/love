@@ -1,21 +1,23 @@
 package root
 
-import log"github.com/sirupsen/logrus"
+import log "github.com/sirupsen/logrus"
 
 type Hub struct {
-	Clients    map[*Client]bool
-	Register   chan *Client
-	UnRegister chan *Client
-	Broadcast  chan []byte
+	Clients     map[*Client]bool
+	Register    chan *Client
+	UnRegister  chan *Client
+	Broadcast   chan []byte
+	HttpMessage chan []byte
 }
 
 //create a hub that control the client lifecycle
 func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[*Client]bool),
-		Register:   make(chan *Client),
-		UnRegister: make(chan *Client),
-		Broadcast:  make(chan []byte),
+		Clients:     make(map[*Client]bool),
+		Register:    make(chan *Client),
+		UnRegister:  make(chan *Client),
+		Broadcast:   make(chan []byte, 256),
+		HttpMessage: make(chan []byte, 256),
 	}
 }
 

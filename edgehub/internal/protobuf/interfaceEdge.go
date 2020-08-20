@@ -4,9 +4,9 @@ package protobuf
 import "github.com/golang/protobuf/proto"
 import "github.com/sirupsen/logrus"
 
-func ReadEdge(b []byte)*InterfaceEdge{
+func ReadEdge(b []byte) *InterfaceEdge {
 	edge := InterfaceEdge{}
-	err :=proto.Unmarshal(b,&edge)
+	err := proto.Unmarshal(b, &edge)
 	if err != nil {
 		logrus.Warning(err)
 	}

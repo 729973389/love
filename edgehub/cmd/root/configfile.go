@@ -9,10 +9,13 @@ import (
 	"io/ioutil"
 	"os"
 )
-var socketFile="socket.json"
-func SetConfig()  {
-	configSocket := &config.Socket{}
+
+var socketFile = "socket.json"
+
+func SetConfig() {
+	configSocket := &config.Url{}
 	configSocket.Socket = "43211"
+	configSocket.SendData = "/api/v2/edge/data/create"
 	bs, err := json.MarshalIndent(configSocket, "", " ")
 	if err != nil {
 		log.WithError(err).WithField(socketFile, "Error")
@@ -28,23 +31,23 @@ func SetConfig()  {
 	writers.Flush()
 }
 
-func GetConfig()config.Socket{
-	for i:=0;i<2;i++ {
-		b,err := ioutil.ReadFile(socketFile)
-		if err != nil{
-			log.Warning(errors.Wrap(err,"read config"))
+func GetConfig() config.Url {
+	for i := 0; i < 2; i++ {
+		b, err := ioutil.ReadFile(socketFile)
+		if err != nil {
+			log.Warning(errors.Wrap(err, "read config"))
 			SetConfig()
-			if i==0{
+			if i == 0 {
 				continue
 			}
 		}
-		socket := &config.Socket{}
-		err =json.Unmarshal(b,socket)
+		socket := &config.Url{}
+		err = json.Unmarshal(b, socket)
 		if err != nil {
 			log.Warning(err)
 		}
 		return *socket
 
 	}
-	return config.Socket{}
+	return config.Url{}
 }
