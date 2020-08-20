@@ -8,7 +8,7 @@ User=root
 Group=root
 WorkingDirectory=/opt/easyfetch/edgeDaemon
 ExecStart=/opt/easyfetch/edgeDaemon/edgeDaemon
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]

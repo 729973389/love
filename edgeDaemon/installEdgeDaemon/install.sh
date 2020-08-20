@@ -1,7 +1,7 @@
 #!/sbin/sh
 remoteUrl=${1}
-installerToken=${2}
-id=${3}
+installerToken=${3}
+id=${2}
 flag=1
 edgeDaemonWorkplace="/opt/easyfetch/edgeDaemon"
 if [ -d ${edgeDaemonWorkplace} ]; then

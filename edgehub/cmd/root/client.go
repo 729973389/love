@@ -1,7 +1,6 @@
 package root
 
 import (
-	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
@@ -30,7 +29,7 @@ var UpGrader = websocket.Upgrader{}
 func Servews(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := UpGrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("upgrade: ", err)
+		log.Error("upgrade: ", err)
 		return
 	}
 	log.Println("connecting:", r.RemoteAddr)
@@ -55,7 +54,7 @@ func (c *Client) WritePump() {
 			case websocket.PingMessage:
 				err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
 				if err != nil {
-					log.Println("set write deadline: ", err)
+					log.Warning("set write deadline: ", err)
 				}
 				err = c.Conn.WriteMessage(websocket.PongMessage, nil)
 				if err != nil {
@@ -72,7 +71,7 @@ func (c *Client) WritePump() {
 		case message, ok := <-c.Send:
 			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
 			if err != nil {
-				log.Println("set write deadline: ", err)
+				log.Warning("set write deadline: ", err)
 			}
 			if !ok {
 				c.Conn.WriteMessage(websocket.CloseMessage, nil)
@@ -89,7 +88,7 @@ func (c *Client) WritePump() {
 			timerCount++
 			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
 			if err != nil {
-				log.Println("set write deadline: ", err)
+				log.Warning("set write deadline: ", err)
 			}
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
@@ -108,7 +107,7 @@ func (c *Client) readPump() {
 		c.Hub.UnRegister <- c
 	}()
 	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		log.Println("set read deadline:", err)
+		log.Warning("set read deadline:", err)
 	}
 	c.Conn.SetPingHandler(func(appData string) error {
 		err := c.Conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -135,7 +134,7 @@ func (c *Client) readPump() {
 		{
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Println("read: ", err)
+					log.Error("read: ", err)
 				}
 				break
 			}
@@ -145,7 +144,6 @@ func (c *Client) readPump() {
 				once.Do(func() {
 					c.SerialNumber = edgeBuf.SerialNumber
 					c.Hub.HttpRegister <- c
-					fmt.Println(c.SerialNumber)
 				})
 				c.Send <- message
 				c.Hub.HttpMessage <- message

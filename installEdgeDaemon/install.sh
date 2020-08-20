@@ -11,10 +11,6 @@ else
 
 fi
 cp ./* ${edgeDaemonWorkplace} || echo "ERROR:can't copy files" || flag=0
-if [ -e "${edgeDaemonWorkplace}/jsonCreater" ]; then
-        cd ${edgeDaemonWorkplace};${edgeDaemonWorkplace}/jsonCreater "-url" ${remoteUrl} "-token" ${installerToken} "-id" ${id}||echo "ERROR: create configfile failed" || flag=0
-fi
-
 if [ -e "${edgeDaemonWorkplace}/edgeDaemon" ]; then
 	if [ -e "${edgeDaemonWorkplace}/edgeDaemon.service" ]; then 
 		cp ${edgeDaemonWorkplace}/edgeDaemon.service /etc/systemd/system || echo "ERROR: CANT COPY SERVER" || flag=0
@@ -25,7 +21,12 @@ if [ -e "${edgeDaemonWorkplace}/edgeDaemon" ]; then
 else
 	echo "ERROR: no edgeDaemon file"
 fi
-if [ ${edgeFlag} -eq 1 ]; then
+
+if [ -e "${edgeDaemonWorkplace}/jsonCreater" ]; then
+        cd ${edgeDaemonWorkplace};${edgeDaemonWorkplace}/jsonCreater "-url" ${remoteUrl} "-token" ${installerToken} "-id" ${id}||echo "ERROR: create configfile failed" || flag=0
+fi
+
+if [ ${flag} -eq 1 ]; then
 	echo "INFO: install success!"
 else
 		echo "ERROR: install faild"

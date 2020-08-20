@@ -8,8 +8,6 @@ import (
 	"net/http"
 )
 
-
-
 var addr = flag.String("port", ":43211", "http service address")
 
 // use default options
@@ -28,12 +26,4 @@ func Run() {
 	fmt.Println("listening", *addr)
 	defer log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", GetConfig().Socket), nil))
 
-}
-
-func Ping(conn *websocket.Conn) {
-	err := conn.WriteMessage(pin, nil)
-	log.Println("ping")
-	if err != nil {
-		log.Println("ping: ", err)
-	}
 }

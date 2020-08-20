@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//control all message that transformed by each instance
 type Hub struct {
 	Clients        map[*Client]bool
 	Register       chan *Client

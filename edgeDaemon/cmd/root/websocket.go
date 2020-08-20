@@ -3,6 +3,7 @@ package root
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeDaemon/internal/protobuf"
@@ -160,8 +161,12 @@ func (w *WS) Read() {
 		}
 		switch mt {
 		case websocket.BinaryMessage:
-			connectInfo := protobuf.ReadBuf(message)
-			b, err := json.MarshalIndent(&connectInfo, "", " ")
+			edgeInfo := &protobuf.EdgeInfo{}
+			err := proto.Unmarshal(message,edgeInfo)
+			if err != nil {
+				log.Warning(err)
+			}
+			b, err := json.MarshalIndent(edgeInfo, "", " ")
 			if err != nil {
 				log.WithError(err)
 			}
@@ -179,9 +184,6 @@ func (w *WS) LoopInfo() {
 
 	}()
 	for {
-		//test
-		log.Println(url, token, id)
-		//
 		systemInfo := protobuf.GetSystemInfo()
 		edgeInfo := &protobuf.EdgeInfo{
 			SerialNumber: id,
