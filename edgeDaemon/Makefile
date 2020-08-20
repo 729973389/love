@@ -1,13 +1,13 @@
 .PHONY:run dlv build clean dev
-log:
+dev:
 	@touch edgeDaemon.log
-	@./build/edgeDaemon > edgeDaemon.log
+run :
+	@./edgeDaemon > edgeDaemon.log
 dlv:
-	@go build -o build/edgeDaemon cmd/main.go
-	@sh dlv.sh
+	go build cmd/main.go
+	sh dlv.sh
 build:
-	@go build -o build/edgeDaemon cmd/main.go
-	@go build -o build/jsonCreater jsonCreater/main.go
+	go build -o build/edgeDaemon cmd/main.go
 clean:
-	@rm build/edgeDaemon
-	@rm biuld/jsonCreater
+	@rm server.json
+	@rm edgeDaemon

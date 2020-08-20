@@ -12,7 +12,7 @@ import (
 )
 
 var url = GetConfig().Url
-var token=GetConfig().Token
+var token = GetConfig().Token
 var id = GetConfig().SerialNumber
 
 type WS struct {
@@ -51,6 +51,9 @@ func RunTCP() {
 				switch s {
 				case os.Interrupt:
 					log.Error("interrupt")
+					os.Exit(0)
+				case os.Kill:
+					log.Error("EXIT")
 					os.Exit(0)
 
 				}
@@ -125,6 +128,7 @@ func (w *WS) Write() {
 
 func (w *WS) Read() {
 	defer func() {
+		w.signalCh <- os.Kill
 		w.Conn.Close()
 	}()
 	if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
@@ -176,12 +180,12 @@ func (w *WS) LoopInfo() {
 	}()
 	for {
 		//test
-		log.Println(url,token,id)
+		log.Println(url, token, id)
 		//
 		systemInfo := protobuf.GetSystemInfo()
 		edgeInfo := &protobuf.EdgeInfo{
 			SerialNumber: id,
-			Data: &systemInfo,
+			Data:         &systemInfo,
 		}
 		message := protobuf.GetBufEdgeInfo(edgeInfo)
 		w.Send <- message

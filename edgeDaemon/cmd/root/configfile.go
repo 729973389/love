@@ -29,23 +29,23 @@ const configFile = "server.json"
 
 func GetConfig() *config.Server {
 	//for i := 0; i < 2; i++ {
-		b, err := ioutil.ReadFile(configFile)
-		if err != nil {
-			log.WithError(err).WithField("http.json", "Error")
-			//SetConfig()
-			//if i == 0 {
-			//	continue
-			//}
-			return nil
-		}
-		config := &config.Server{}
-		err = json.Unmarshal(b, config)
-		if err != nil {
-			log.WithError(err).WithField("http.json", "Error")
-			return nil
-		}
-		log.Println(config)
-		return config
+	b, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.WithError(err).WithField("http.json", "Error")
+		//SetConfig()
+		//if i == 0 {
+		//	continue
+		//}
+		return nil
+	}
+	config := &config.Server{}
+	err = json.Unmarshal(b, config)
+	if err != nil {
+		log.WithError(err).WithField("http.json", "Error")
+		return nil
+	}
+	log.Println(config)
+	return config
 	//}
 	//return nil
 

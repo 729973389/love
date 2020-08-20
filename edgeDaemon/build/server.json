@@ -1,3 +1,5 @@
 {
- "url": "localhost:43211/hub"
+ "url": "localhost:43211/hub",
+ "token": "sura",
+ "serialNumber": "sublime"
 }
