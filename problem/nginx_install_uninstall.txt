@@ -1,5 +1,5 @@
 install:
-$ sudo apt update;sudoapt install nginx
+$ sudo apt update;sudo apt install nginx
 ||problem:
 nginx can't find /run/nginx.pid
 why:cause in it's configration file nginx.conf (which is usually in directory->usr/etx/nginx || /usr/local/
