@@ -1,9 +1,9 @@
 install:
-$ sudo apt update;sudoapt install nginx
+$ sudo apt update;sudo apt install nginx
 ||problem:
 nginx can't find /run/nginx.pid
-why:cause in it's configration file nginx.conf (which is usually in directory->usr/etx/nginx || /usr/local/
-nginx/conf || /usr/local/etc/nginx),directives (pid /run/nginx.pid;) but it can't be found in /run. use shell $ps -ax | grep nginx ,but is't pid always changes:(
+why:cause in it's configration file nginx.conf (which is usually in directory->usr/etc/nginx || /usr/local/
+nginx/conf || /usr/local/etc/nginx),directives (pid /run/nginx.pid;) but it can't be found in /run. use shell $ps -ax | grep nginx ,but it's pid always changes:(
 how:
 $ sudo nginx //to creat nginx.pid in /run directory.
 

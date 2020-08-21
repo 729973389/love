@@ -1,9 +1,9 @@
 永久设置：\f
 #vim /etc/profile 	在最后一行加入# export PATH=$PATH:xxx/bin     \f
 2.修改.bashrc文件\f
-修改~/.bashrc文件。（每个用户目录下都有） #cd ~回到根目录 \f
-#vim .bashrc 在里面最后一行加入 $export PATH=$PATH:xxx/bin
-source .bashrc 刷新
+修改~/.bashrc文件。（每个用户目录下都有） #cd ~回到当前用户的用户目录 \f
+#vim ~/.bashrc 在里面最后一行加入 $export PATH=$PATH:xxx/bin
+source ~/.bashrc 刷新
 
 3.取消变量设置\f
 #set可以查看当前用户本地shell设置的所有变量\f

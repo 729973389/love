@@ -1,6 +1,7 @@
 
 Makefiles are an automation tool for build and running software application. Below
-is a Makefile example that will build, run, and compile our Go application.
+is a Makefile example that will build, run, and compile our Go application.
+.PHONY:build
 build:
 	go build -o bin/main main.go
 	
