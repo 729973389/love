@@ -5,5 +5,6 @@ type Url struct {
 	SendData  string `json:"sendData"`
 	Socket    string `json:"socket"`
 	PutStatus string `json:"putStatus"`
-	GetInfo string `json:"getInfo"`
+	GetInfo   string `json:"getInfo"`
+	Key       string `json:"key"`
 }

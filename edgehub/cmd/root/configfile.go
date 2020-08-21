@@ -18,7 +18,8 @@ func SetConfig() {
 	configSocket.Socket = "43211"
 	configSocket.SendData = "/api/v2/edge/data/create"
 	configSocket.PutStatus = "/api/v2/edge/update/online"
-	configSocket.GetInfo="/api/v2/edge/getinfo"
+	configSocket.GetInfo = "/api/v2/edge/getInfo"
+	configSocket.Key = "3141592666"
 	bs, err := json.MarshalIndent(configSocket, "", " ")
 	if err != nil {
 		log.WithError(err).WithField(socketFile, "Error")

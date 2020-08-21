@@ -1,11 +1,13 @@
 package root
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
 	http "net/http"
-	"sync"
 	"time"
 )
 
@@ -32,8 +34,12 @@ func Servews(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Error("upgrade: ", err)
 		return
 	}
+	number, ok := Check(conn)
+	if !ok {
+		return
+	}
 	log.Println("connecting:", r.RemoteAddr)
-	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 256), PingPong: make(chan int, 4)}
+	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 1024), PingPong: make(chan int), SerialNumber: number}
 	client.Hub.Register <- client
 	go client.readPump()
 	go client.WritePump()
@@ -45,7 +51,7 @@ func (c *Client) WritePump() {
 	timer := time.NewTimer(pingPeriod)
 	defer func() {
 		timer.Stop()
-		c.Hub.UnRegister <- c
+		c.Conn.Close()
 	}()
 	for {
 		select {
@@ -100,11 +106,11 @@ func (c *Client) WritePump() {
 
 //read message from client
 func (c *Client) readPump() {
-	var once sync.Once
+	//var once sync.Once
 	//unregister client and close the websocket connection
 	defer func() {
 		log.Warning("closing read: ", c.Conn.RemoteAddr())
-		c.Hub.UnRegister <- c
+		c.Conn.Close()
 	}()
 	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 		log.Warning("set read deadline:", err)
@@ -140,15 +146,70 @@ func (c *Client) readPump() {
 			}
 			switch mt {
 			case websocket.BinaryMessage:
-				edgeBuf := protobuf.ReadEdge(message)
-				once.Do(func() {
-					c.SerialNumber = edgeBuf.SerialNumber
-					c.Hub.HttpRegister <- c
-				})
+				//edgeBuf := protobuf.ReadEdge(message)
+				//once.Do(func() {
+				//	if edgeBuf.Token == "" ||edgeBuf.Hmac==""{
+				//		c.Hub.UnRegister <- c
+				//		return
+				//	}
+				//	c.SerialNumber = edgeBuf.SerialNumber
+				//	c.Token = edgeBuf.Token
+				//	c.Hmac = edgeBuf.Hmac
+				//	if !c.CheckHmac() {
+				//		c.Hub.UnRegister <- c
+				//		return
+				//	}
+				//	c.Hub.HttpRegister <- c
+				//})
+
 				c.Send <- message
 				c.Hub.HttpMessage <- message
 			}
 		}
 	}
+}
 
+func CheckHmac(m string, s string) bool {
+	var b = []byte(GetConfig().Key)
+	hash := hmac.New(sha256.New, b)
+
+	_, err := hash.Write([]byte(s))
+	if err != nil {
+		log.Warning("Get hash: ", err)
+	}
+	if hex.EncodeToString(hash.Sum(nil)) == m {
+		log.Println("Check hash success")
+		return true
+	}
+	log.Error("Check hash error")
+	return false
+}
+
+func Check(conn *websocket.Conn) (string, bool) {
+	mt, message, err := conn.ReadMessage()
+	if err != nil {
+		log.Error(err)
+		return "", false
+	}
+	if mt != websocket.BinaryMessage {
+		conn.Close()
+		return "", false
+	}
+	edgeBuf := protobuf.ReadEdge(message)
+	if edgeBuf.Hmac == "" || edgeBuf.Token == "" || edgeBuf.SerialNumber == "" {
+		log.Error("No check information: ", conn.RemoteAddr())
+		conn.Close()
+		return "", false
+	}
+	if !CheckHmac(edgeBuf.Hmac, edgeBuf.SerialNumber) {
+		conn.Close()
+		return "", false
+	}
+	if !GEtInfo(edgeBuf.Token, edgeBuf.SerialNumber) {
+		log.Error("Close connection: ", conn.RemoteAddr())
+		conn.Close()
+		return "", false
+	}
+	PutStatus(edgeBuf.SerialNumber, true)
+	return edgeBuf.SerialNumber, true
 }

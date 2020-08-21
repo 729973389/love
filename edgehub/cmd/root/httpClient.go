@@ -3,10 +3,12 @@ package root
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
 	"net/http"
+	"strings"
 )
 
 type HttpClient struct {
@@ -20,17 +22,15 @@ func Serve(hub *Hub) {
 		select {
 		case message := <-hc.Hub.HttpMessage:
 			hc.SendData(message)
-		case c := <-hc.Hub.HttpRegister:
-			hc.PutStatus(c.SerialNumber, true)
 		case c := <-hc.Hub.HttpUnRegister:
-			hc.PutStatus(c.SerialNumber, false)
+			PutStatus(c.SerialNumber, false)
 
 		}
 	}
 }
 
 func (c *HttpClient) SendData(b []byte) {
-
+	var route = GetConfig().Url + GetConfig().SendData
 	sysInfo := &protobuf.InterfaceEdge{}
 	if err := proto.Unmarshal(b, sysInfo); err != nil {
 		log.Error(err)
@@ -40,15 +40,10 @@ func (c *HttpClient) SendData(b []byte) {
 		log.Warning("jsonMarshal: ", err)
 	}
 	log.Println("SEND DATA: ", string(b))
-	resp, err := http.Post(GetConfig().Url+GetConfig().SendData, "application/json", bytes.NewReader(b))
+	resp, err := http.Post(route, "application/json", bytes.NewReader(b))
 	if err != nil {
-		log.Warning("Get: ", err)
+		log.Error("Get: ", err)
 		return
-	}
-	if resp==nil {
-		log.Error("REMOTE HOST CLOSED")
-		return
-
 	}
 	defer resp.Body.Close()
 	respBuf := make([]byte, 256)
@@ -56,8 +51,8 @@ func (c *HttpClient) SendData(b []byte) {
 	log.Println("POST:SEND DATA: ", string(respBuf))
 }
 
-func (c *HttpClient) PutStatus(number string, status bool) {
-	var rout = GetConfig().Url + GetConfig().PutStatus
+func PutStatus(number string, status bool) {
+	var route = GetConfig().Url + GetConfig().PutStatus
 	httpInfo := &protobuf.HttpOnline{
 		SerialNumber: number,
 		Online:       status,
@@ -67,15 +62,12 @@ func (c *HttpClient) PutStatus(number string, status bool) {
 		log.Warning(err)
 	}
 	log.Println(string(b))
-	request, err := http.NewRequest("PUT", rout, bytes.NewReader(b))
+	request, err := http.NewRequest("PUT", route, bytes.NewReader(b))
 	request.Header.Add("Content-Type", "application/json")
 	defer request.Body.Close()
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		log.Warning(err)
-	}
-	if resp==nil {
-		log.Error("REMOTE CLOSED")
+		log.Error(err)
 		return
 	}
 	defer resp.Body.Close()
@@ -83,4 +75,38 @@ func (c *HttpClient) PutStatus(number string, status bool) {
 	resp.Body.Read(respBuf)
 	log.Println("PUT:PUT STATUS: ", string(respBuf))
 
+}
+
+func GEtInfo(t string, s string) bool {
+	var route = GetConfig().Url + GetConfig().GetInfo + "?" + fmt.Sprint("serialNumber=", s)
+	log.Println(route) //test
+	var token string
+	resq, err := http.Get(route)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+	defer resq.Body.Close()
+	var b = make([]byte, 512)
+	resq.Body.Read(b)
+	log.Println("GET INFO: ", string(b))
+	ft1 := strings.Split(string(b), ",")
+	for _, v := range ft1 {
+		if strings.Contains(v, "\"token\":") {
+			tokens := strings.Split(v, "\"")
+			for _, v2 := range tokens {
+				if strings.ContainsAny(v2, "0123456789abcd") {
+					token = v2
+					break
+				}
+			}
+		}
+	}
+	if token == "" {
+		return false
+	}
+	if token == t {
+		return true
+	}
+	return false
 }

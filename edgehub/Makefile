@@ -4,7 +4,7 @@ install:
 dev:
 	touch edgeHub.log
 run:
-	./edgeHub >edgeHub.log
+	./build/edgeHub
 dlv:
 	go build cmd/main.go
 	sh dlv.sh
