@@ -23,8 +23,6 @@ func main() {
 	if *remoteUrl == "" || *installerToken == "" || *number == "" {
 		log.Fatalf("ERROR: No specific parameters!")
 	}
-	if err := os.Remove("server.json"); err != nil {
-	}
 	file, err := os.OpenFile("server.json", os.O_CREATE|os.O_RDWR, 0666)
 	defer file.Close()
 	if err != nil {

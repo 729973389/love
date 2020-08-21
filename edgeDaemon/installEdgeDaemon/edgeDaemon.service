@@ -9,7 +9,7 @@ Group=root
 WorkingDirectory=/opt/easyfetch/edgeDaemon
 ExecStart=/opt/easyfetch/edgeDaemon/edgeDaemon
 Restart=always
-RestartSec=10
+RestartSec=45
 
 [Install]
 WantedBy=multi-user.target

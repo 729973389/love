@@ -4,5 +4,6 @@ import "system.proto";
 message edgeInfo{
   string serialNumber = 1;
   protobuf.SystemInfo data = 2;
-
+  string token = 3;
+  string hmac = 4;
 }

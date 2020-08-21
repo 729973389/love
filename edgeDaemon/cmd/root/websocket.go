@@ -1,6 +1,9 @@
 package root
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/golang/protobuf/proto"
@@ -12,15 +15,13 @@ import (
 	"time"
 )
 
-var url = GetConfig().Url
-var token = GetConfig().Token
-var id = GetConfig().SerialNumber
-
 type WS struct {
-	Conn     *websocket.Conn
-	Send     chan []byte
-	PingPong chan int
-	signalCh chan os.Signal
+	Conn         *websocket.Conn
+	Send         chan []byte
+	PingPong     chan int
+	signalCh     chan os.Signal
+	SerialNumber string
+	Token        string
 }
 
 const writeTime = 10 * time.Second
@@ -31,15 +32,27 @@ const ping = 15
 var dialer = websocket.Dialer{}
 
 func RunTCP() {
+	var url = GetConfig().Url
+	var id = GetConfig().SerialNumber
+	var token = GetConfig().Token
 	c, _, err := dialer.Dial("ws://"+url, nil)
 	if err != nil {
 		log.Panic(err)
 	}
+	secret := &protobuf.EdgeInfo{SerialNumber: id, Token: token, Hmac: GetHashMac(id)}
+	b := protobuf.GetBufEdgeInfo(secret)
+	err = c.WriteMessage(websocket.BinaryMessage, b)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	w := &WS{
-		Conn:     c,
-		Send:     make(chan []byte, 256),
-		PingPong: make(chan int, 5),
-		signalCh: make(chan os.Signal, 1),
+		Conn:         c,
+		Send:         make(chan []byte, 1024),
+		PingPong:     make(chan int, 5),
+		signalCh:     make(chan os.Signal, 1),
+		SerialNumber: id,
+		Token:        token,
 	}
 	signal.Notify(w.signalCh)
 	go w.Write()
@@ -162,7 +175,7 @@ func (w *WS) Read() {
 		switch mt {
 		case websocket.BinaryMessage:
 			edgeInfo := &protobuf.EdgeInfo{}
-			err := proto.Unmarshal(message,edgeInfo)
+			err := proto.Unmarshal(message, edgeInfo)
 			if err != nil {
 				log.Warning(err)
 			}
@@ -171,6 +184,9 @@ func (w *WS) Read() {
 				log.WithError(err)
 			}
 			fmt.Println(string(b))
+		case websocket.CloseMessage:
+			log.Error("CONNECTION WAS CLOSED BY HUB")
+			return
 		}
 	}
 }
@@ -186,7 +202,7 @@ func (w *WS) LoopInfo() {
 	for {
 		systemInfo := protobuf.GetSystemInfo()
 		edgeInfo := &protobuf.EdgeInfo{
-			SerialNumber: id,
+			SerialNumber: w.SerialNumber,
 			Data:         &systemInfo,
 		}
 		message := protobuf.GetBufEdgeInfo(edgeInfo)
@@ -195,3 +211,34 @@ func (w *WS) LoopInfo() {
 	}
 
 }
+
+func GetHashMac(id string) string {
+	var key = "3141592666"
+	var b = []byte(key)
+	hash := hmac.New(sha256.New, b)
+
+	_, err := hash.Write([]byte(id))
+	if err != nil {
+		log.Warning("Get hash: ", err)
+	}
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+//func GetTime() string {
+//	time, err := time.Now().UTC().MarshalText()
+//	var YYYYMMDDHH string
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	stime := fmt.Sprintf("%s", time)
+//	clear := []string{"-", ":", "T", "Z"}
+//	for _, v := range clear {
+//		stime = strings.Replace(stime, v, "", -1)
+//	}
+//	for i, v := range stime {
+//		if i < 10 {
+//			YYYYMMDDHH += string(v)
+//		}
+//	}
+//	return YYYYMMDDHH
+//}
