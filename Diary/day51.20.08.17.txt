@@ -1,0 +1,85 @@
+||websock.Conn.SetReadDeadline(time.Now().Add(pongtime))
+//Package:func (c *Conn) SetReadDeadline(t time.Time) error
+SetReadDeadline sets the read deadline on the underlying network connection. After a read has timed out, the websocket connection state is corrupt and all future reads will return an error. A zero value for t means reads will not time out.这个方法直接在底层设置，所以只要设置一次就可以了，但是pinghandler和ponghandler需要单独设置。
+今天封装了一个WS结构体来封装daemon的websocket连接，
+type WS struct {
+   Conn     *websocket.Conn //连接
+   Send     chan []byte //传递要发送的数据
+   PingPong chan int //传递pingpong通道
+   signalCh chan os.Signal //传递系统信号控制程序运行
+}
+||grpc:
+Prerequisites
+
+Go, any one of the three latest major releases of Go.
+For installation instructions, see Go’s Getting Started guide.
+Protocol buffer compiler, protoc, version 3.
+1.
+Install the protocol compiler plugin for Go (protoc-gen-go) using the following command:
+2.
+$ export GO111MODULE=on  # Enable module mode
+$ go get github.com/golang/protobuf/protoc-gen-go
+3.
+Update your PATH so that the protoc compiler can find the plugin:
+$ export PATH="$PATH:$(go env GOPATH)/bin"
+//
+Define a service in a .proto file.
+Generate server and client code using the protocol buffer compiler.
+Use the Go gRPC API to write a simple client and server for your service.
+|defining the service
+The first stop is to define the gRPC service and the method request and response types using protocol buffers.
+1.To define a service,I specify a named service in my .proto file:
+$service RouteGuide{ ...}
+2.Then you define rpc methods inside your service definition, specifying theie request and response types .gRPC lets you define four kinds of service method,all od which are used in the RouteGuide service:
+ClientsL:
+A simple RPC where the client sends a request to the server using the stub and waits for a response to come back,just like a normal function call.
+
+//Obtains the feature at given position. 
+$rpc GetFeature(Point) returns (Feature) { }
+
+Server:A server-side streaming RPC where the client sends a request to the server and gets a stream to read a sequence of messages back.The client reads from the returned stream until there are no more message.You specify a server-side streaming method by placing the "stream" keyword before the response type.
+
+$//Obtains the Features available within the given Rectangle.[Results are streamed rather than returned at once(e.g. in a response message with a respeated field)],as the rectangle may cover a large area and contain a huge number od feature
+s.
+$rpc ListFeatures(Rectangle)returns(stream Feature){}
+
+A client-side streaming RPC where the client writes a sequence of messages and sends them to the server, again using a provided stream. Once the client has finished writing the messages, it waits for the server to read them all and return its response. You specify a client-side streaming method by placing the stream keyword before the request type.
+
+//// Accepts a stream of Points on a route being traversed, returning a RouteSum
+mary when traversal is completed.
+$rpc RecordRoute(stream Point)returns(RouteSummaty){}
+
+||websocket error code
+1000	CLOSE_NORMAL	正常关闭; 无论为何目的而创建, 该链接都已成功完成任务.
+1001	CLOSE_GOING_AWAY	终端离开, 可能因为服务端错误, 也可能因为浏览器正从打开连接的页面跳转离开.
+1002	CLOSE_PROTOCOL_ERROR	由于协议错误而中断连接.
+1003	CLOSE_UNSUPPORTED	由于接收到不允许的数据类型而断开连接 (如仅接收文本数据的终端接收到了二进制数据).
+1004		保留. 其意义可能会在未来定义.
+1005	CLOSE_NO_STATUS	保留. 表示没有收到预期的状态码.
+1006	CLOSE_ABNORMAL	保留. 用于期望收到状态码时连接非正常关闭 (也就是说, 没有发送关闭帧).
+1007	Unsupported Data	由于收到了格式不符的数据而断开连接 (如文本消息中包含了非 UTF-8 数据).
+1008	Policy Violation	由于收到不符合约定的数据而断开连接. 这是一个通用状态码, 用于不适合使用 1003 和 1009 状态码的场景.
+1009	CLOSE_TOO_LARGE	由于收到过大的数据帧而断开连接.
+1010	Missing Extension	客户端期望服务器商定一个或多个拓展, 但服务器没有处理, 因此客户端断开连接.
+1011	Internal Error	客户端由于遇到没有预料的情况阻止其完成请求, 因此服务端断开连接.
+1012	Service Restart	服务器由于重启而断开连接.
+1013	Try Again Later	服务器由于临时原因断开连接, 如服务器过载因此断开一部分客户端连接.
+1014		由 WebSocket标准保留以便未来使用.
+1015	TLS Handshake	保留. 表示连接由于无法完成 TLS 握手而关闭 (例如无法验证服务器证书).
+1016–1999		由 WebSocket标准保留以便未来使用.
+2000–2999		由 WebSocket拓展保留使用.
+3000–3999		可以由库或框架使用.? 不应由应用使用. 可以在 IANA 注册, 先到先得.
+4000–4999		可以由应用使用.
+||RPC:(Remote Procesure Call),远程过程调用，是一个计算机通信协议。该协议允许运行
+于一台计算机的程序调用另一个地址空间（通常为一个开放网络的计算机）的子程序，而程
+序员就像调用本地程序一样，无需额外地为这个交互作用编程（无需关注细节）。RPC是一
+种服务器-客户端模式，经典实现是通过发送请求-接收回应进行信息交互地系统。
+流程：
+1.客户端调用客户端stub（client stub）。这个调用是在本地，并将调用参数push到栈（stack）中。
+2.客户端stub（client stub）将这些参数包装，并通过系统调用发送到服务端机器。打包的过程叫 marshalling。（常见方式：XML、JSON、二进制编码）
+3.客户端本地操作系统发送信息至服务器。（可通过自定义TCP协议或HTTP传输）
+4.服务器系统将信息传送至服务端stub（server stub）。
+5.服务端stub（server stub）解析信息。该过程叫 unmarshalling。
+6.服务端stub（server stub）调用程序，并通过类似的方式返回给客户端。
+Client Call function f(x) Server receive the call and return y(result of f(x))
+
