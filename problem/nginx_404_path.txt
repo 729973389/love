@@ -1,0 +1,10 @@
+problem:
+$wget localhost://54321/get/test/test.txt
+HTTP request sent, awaiting response ... 404 Not Found
+can’t curl or wget the source file.
+why: I check the access.log and error.log  in /var/log/nginx directory,and in access.log ,it shows this :
+[error] 6741#6743: *4 "/wuff1996/nginx/source/test/get/test/test.txt" failed No such file or directory.
+so I figure out that the location directives location /properties {
+root /wuff1996;  
+} meas that the /wuff1996 is file root ,so nginx will find the url localhost:54321/properties in the system directory /wuff1996/properties.
+How to solve it: change (/etc/nginx/nginx.conf) the location directives to direct correct path to file.and sudo nginx -s reload to flush the configration file.
