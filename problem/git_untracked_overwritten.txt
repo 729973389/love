@@ -1,0 +1,7 @@
+problem:
+When I git pull origin master,The following untracked working tree files would be overwritten by merge.
+Why:
+local version is not controlled.
+How:
+$ git clean -xdf //x:remove unrecognized files,d:remove the files which are not added to git path,f:force.
+$ git checkout -f //discard changes in working directory.
