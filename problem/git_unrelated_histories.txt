@@ -1,0 +1,5 @@
+problem:
+when I $ git pull origin master; It shows that "fatal:frfusing to merge unrelated fistories".
+why:
+Cause the the history is completely different than github knows.
+How:$ git pull --allow-unrelated-histories; to allow the different history gathered.
