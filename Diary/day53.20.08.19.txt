@@ -1,0 +1,323 @@
+||nginx:
+Ubuntu
+Install the prerequisites:
+sudo apt install curl gnupg2 ca-certificates lsb-release
+To set up the apt repository for stable nginx packages, run the following command:
+$echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx"
+$sudo tee /etc/apt/sources.list.d/nginx.list
+If you would like to use mainline nginx packages, run the following command instead:
+$echo "deb http://nginx.org/packages/mainline/ubuntu `lsb_release -cs` nginx"
+$sudo tee /etc/apt/sources.list.d/nginx.list
+Next, import an official nginx signing key so apt could verify the packages authenticity:
+$curl -fsSL https://nginx.org/keys/nginx_signing.key | sudo apt-key add -
+Verify that you now have the proper key:
+sudo apt-key fingerprint ABF5BD827BD9BF62
+The output should contain the full fingerprint 573B FD6B 3D8F BC64 1079 A6AB ABF5 BD82 7BD9 BF62 as follows:
+pub   rsa2048 2011-08-19 [SC] [expires: 2024-06-14]
+      573B FD6B 3D8F BC64 1079  A6AB ABF5 BD82 7BD9 BF62
+uid   [ unknown] nginx signing key <signing-key@nginx.com>
+
+!!To install nginx, run the following commands:
+$sudo oapt update
+$sudo apt install nginx
+||nginx introduction
+This guide gives a basic introduction to nginx and describes some simple tasks t
+hat can be done with it. It is supposed that nginx is already installed on the r
+eader’s machine. If it is not, see the Installing nginx page. This guide describ
+es how to start and stop nginx, and reload its configuration, explains the struc
+ture of the configuration file and describes how to set up nginx to serve out st
+atic content, how to configure nginx as a proxy server, and how to connect it wi
+th a FastCGI application.
+nginx has one master process and several worker processes. The main purpose of t
+he master process is to read and evaluate configuration, and maintain worker pro
+cesses. Worker processes do actual processing of requests. nginx employs event-b
+ased model and OS-dependent mechanisms to efficiently distribute requests among 
+worker processes. The number of worker processes is defined in the configuration
+ file and may be fixed for a given configuration or automatically adjusted to th
+e number of available CPU cores (see worker_processes).
+The way nginx and its modules work is determined in the configuration file. By d
+efault, the configuration file is named [nginx.conf and placed in the directory /usr/local/nginx/conf, /etc/nginx, or /usr/local/etc/nginx.]
+///starting,stopping,reloading configuration
+start:
+To start nginx, run the executable file. Once nginx is started, it can be contro
+lled by invoking the executable with the -s parameter. Use the following syntax:
+$ nginx -s ${signal}
+Where signal may be one of the following:
+stop //fast shutdown
+quit //graceful shutdown
+reload //reloading the configuration file
+reopen //reopening the log files
+The process ID of the nginx master process is written, by default, to the nginx.pid in the directory /usr/local/nginx/logs or /var/run.
+For getting the list of all running nginx processes, the ps utility may be used, for example, in the following way:
+$ps -ax | grep nginx 
+
+|nginx configuration file's structure
+nginx consists of modules which are controlled by directives specified in the configuration file. Directives are divided into simple directives and block directives. A simple directive consists of the name and parameters separated by spaces and ends with a semicolon (;). A block directive has the same structure as a simple directive, but instead of the semicolon it ends with a set of additional instructions surrounded by braces ({ and }). If a block directive can have other directives inside braces, it is called a context (examples: events, http, server, and location).
+Directives placed in the configuration file outside of any contexts are considered to be in the main context. The events and http directives reside in the main context, server in http, and location in server.
+The rest of a line after the # sign is considered a comment.
+///serving static content
+An important web server task is serving out files (such as images or static HTML pages). You will implement an example where, depending on the request, files will be served from different local directories: /data/www (which may contain HTML files) and /data/images (containing images). This will require editing of the configuration file and setting up of a server block inside the http block with two location blocks.
+http{
+server{
+}
+}
+1:, create the /data/www directory and put an index.html file with any text content into it and create the /data/images directory and place some images in it.
+2.open the configuration file(可以使用$whereis nginx.conf查找，但通常情况是在（/usr/local/nginx/conf, /etc/nginx, or /usr/local/etc/nginx）). The default configuration file already includes several examples of the server block, mostly commented out. For now comment out all such blocks and start a new server block:
+http {
+    server {
+    }
+}
+Generally, the configuration file may include several server blocks distinguished（treat differently） by ports on which they listen to and by server names. Once nginx decides which server processes a request, it tests the URI specified in the request’s header against the parameters of the location directives defined inside the server block.
+location /source/edgeDaemon/ {
+root /wuff1996/nginx/source/edgeDaemon;
+}
+This location block specifies the “/get/edgeDaemon” prefix compared with the URI from the request. For matching requests, the URI will be added to the path specified in the root directive, that is, to /wuff1996/nginx/source/edgeDaemon, to form the path to the requested file on the local file system. If there are several matching location blocks nginx selects the one with the longest prefix. The location block above provides the shortest prefix, of length one, and so only if all other location blocks fail to provide a match, this block will be used.
+next,add the second location block:
+location /source/test{
+root /wuff1996/nginx;
+}
+This is already a working configuration of a server that listens on the standard port 80 and is accessible on the local machine at http://localhost/. In response to requests with URIs starting with /images/, the server will send files from the /data/images directory. For example, in response to the http://localhost/images/example.png request nginx will send the /data/images/example.png file. If such file does not exist, nginx will send a response indicating the 404 error. Requests with URIs not starting with /images/ will be mapped onto the /data/www directory. For example, in response to the http://localhost/some/example.html request nginx will send the /data/www/some/example.html file.
+To apply the new configuration, start nginx if it is not yet started or send the reload signal to the nginx’s master process, by executing:
+
+nginx -s reload
+In case something does not work as expected, you may try to find out the reason in access.log and error.log files in the directory /usr/local/nginx/logs or /var/log/nginx.
+
+Setting Up a Simple Proxy Server
+One of the frequent uses of nginx is setting it up as a proxy server, which means a server that receives requests, passes them to the proxied servers, retrieves responses from them, and sends them to the clients.
+We will configure a basic proxy server, which serves requests of images with files from the local directory and sends all other requests to a proxied server. In this example, both servers will be defined on a single nginx instance.
+First, define the proxied server by adding one more server block to the nginx’s configuration file with the following contents:
+server {
+    listen 8080;
+    root /data/up1;
+
+    location / {
+    }
+}
+This will be a simple server that listens on the port 8080 (previously, the listen directive has not been specified since the standard port 80 was used) and maps all requests to the /data/up1 directory on the local file system. Create this directory and put the index.html file into it. Note that the root directive is placed in the server context. Such root directive is used when the location block selected for serving a request does not include own root directive.
+Next, use the server configuration from the previous section and modify it to make it a proxy server configuration. In the first location block, put the proxy_pass directive with the protocol, name and port of the proxied server specified in the parameter (in our case, it is http://localhost:8080):
+server {
+    location / {
+        proxy_pass http://localhost:8080;
+    }
+
+    location /images/ {
+        root /data;
+    }
+}
+We will modify the second location block, which currently maps requests with the /images/ prefix to the files under the /data/images directory, to make it match the requests of images with typical file extensions. The modified location block looks like this:
+location ~ \.(gif|jpg|png)$ {
+    root /data/images;
+}
+
+The parameter is a regular expression matching all URIs ending with .gif, .jpg, or .png. A regular expression should be preceded with ~. The corresponding requests will be mapped to the /data/images directory.
+When nginx selects a location block to serve a request it first checks location directives that specify prefixes, remembering location with the longest prefix, and then checks regular expressions. If there is a match with a regular expression, nginx picks this location or, otherwise, it picks the one remembered earlier.
+The resulting configuration of a proxy server will look like this:
+server {
+    location / {
+        proxy_pass http://localhost:8080/;
+    }
+
+    location ~ \.(gif|jpg|png)$ {
+        root /data/images;
+    }
+}
+This server will filter requests ending wnith .gif, .jpg, or .png and map them to the /data/images directory (by adding URI to the root directive’s parameter) and pass all other requests to the proxied server configured above.
+don’t forget to send reload signal to apply new configuration!
+
+||CGI(common gateway interface)
+在计算机领域，Common Gateway Interface (CGI) 是为了web 服务去执行类似于console application (也可以称作command-line interface programs) 的程序，这种程序是在server上实现 动态页面 提供了一种通用的协议，这样的程序称作 CGI 脚本。重点是这些脚本如何在server上执行。通常情况下，一次请求对应一个CGI 脚本的执行，生成一个 HTML.[1]
+简而言之，一个 HTTP POST 请求，从客户端经由 标准输入 发送数据到一个CGI 程序。同时携带其他数据，例如 URL paths, HTTP header 数据，被转换为进程的环境变量。
+历史[编辑]
+最初，CGI是在1993年由美国国家超级电脑应用中心（NCSA）为NCSA HTTPd Web服务器开发的。这个Web服务器使用了UNIX shell 环境变量来保存从Web服务器传递出去的参数，然后生成一个运行CGI的独立的进程。
+运作[编辑]
+Perl是一个广泛被用来编写CGI程序的语言，但CGI是独立于任何语言的。Web服务器无须对语言有任何了解。事实上，CGI程序可以用任何脚本语言或者编程语言实现，只要该语言可以在系统上运行。除Perl外，像Unix shell script, Python, Ruby, PHP, Tcl, C/C++和Visual Basic都可以用来编写CGI程序。
+实现维基百科编辑的CGI程序的一个例子：首先用户代理程序向这个CGI程序请求某个名称的条目，如果该条目页面存在，CGI程序就会去获取那个条目页面的原始数据，然后把它转换成HTML并把结果输出给浏览器；如果该条目页面不存在，CGI程序则会提示用户新建一个页面。所有维基操作都是通过这个CGI程序来处理的。
+CGI的工作方式，从Web服务器的角度看，是在特定的位置（比如：http://www.example.com/wiki.cgi）定义了可以运行CGI程序。当收到一个匹配URL的请求，相应的程序就会被调用，并将客户端发送的数据作为输入。程序的输出会由Web服务器收集，并加上合适的档头，再发送回客户端。
+一般每次的CGI请求都需要新生成一个程序的副本来运行，这样大的工作量会很快将服务器压垮，因此一些更有效的技术像mod_perl，可以让脚本解释器直接作为模块集成在Web服务器（例如：Apache）中，这样就能避免重复加载和初始化解释器。不过这只是就那些需要解释器的高级语言（即解释语言）而言的，使用诸如C一类的编译语言则可以避免这种额外负荷。由于C及其他编译语言的程序与解释语言程序相比，前者的运行速度更快、对操作系统的负荷更小，使用编译语言程序是可能达到更高执行效率的，然而因为开发效率等原因，在目前解释型语言还是最合适的。
+变通方法[编辑]
+如果代码只是偶尔改变的话，我们可以在服务器产生一个新的进程在编译代码之前进行处理。有一个例子是FastCGI，当然还包括其它编写的加速器，它会在第一次调用脚本时，在系统的某个地方保存脚本编译过的版本。这样对这个文件以后的请求就会自动转向这个编译过的代码，而不用每次调用脚本解释器来解释脚本。当更改了脚本，加速器的临时缓存会被清空来保证调用的是新的版本的脚本。
+另一个方法是直接把解释器放在Web服务器中，这样就无须新建一个进程来执行脚本。Apache服务器有很多这样的模块，像mod_cplusplus、mod_perl、mod_php、mod_python、mod_ruby、和mod_mono。
+///Setting Up FastCGI Proxying
+The ngx_stream_access_module module (1.9.2) allows limiting access to certain client addresses.
+Example Configuration
+server {
+    ...
+    deny  192.168.1.1;
+    allow 192.168.1.0/24;
+    allow 10.1.1.0/16;
+    allow 2001:0db8::/32;
+    deny  all;
+}
+The rules are checked in sequence until the first match is found. In this example, access is allowed only for IPv4 networks 10.1.1.0/16 and 192.168.1.0/24 excluding the address 192.168.1.1, and for IPv6 network 2001:0db8::/32.
+Directives
+Syntax:	allow address | CIDR | unix: | all;
+Default:	—
+Context:	stream, server
+Allows access for the specified network or address. If the special value unix: is specified, allows access for all UNIX-domain sockets.
+Syntax:	deny address | CIDR | unix: | all;
+Default:	—
+Context:	stream, server
+Denies access for the specified network or address. If the special value unix: is specified, denies access for all UNIX-domain sockets.
+//
+Module ngx_mail_auth_http_module
+Directives
+     auth_http
+     auth_http_header
+     auth_http_pass_client_cert
+     auth_http_timeout
+Protocol
+Directives
+Syntax:	auth_http URL;
+Default:	—
+Context:	mail, server
+Sets the URL of the HTTP authentication server. The protocol is described below.
+Syntax:	auth_http_header header value;
+Default:	—
+Context:	mail, server
+Appends the specified header to requests sent to the authentication server. This header can be used as the shared secret to verify that the request comes from nginx. For example:
+auth_http_header X-Auth-Key "secret_string";
+Syntax:	auth_http_pass_client_cert on | off;
+Default:	auth_http_pass_client_cert off;
+Context:	mail, server
+This directive appeared in version 1.7.11.
+Appends the “Auth-SSL-Cert” header with the client certificate in the PEM format (urlencoded) to requests sent to the authentication server.
+Syntax:	auth_http_timeout time;
+Default:	auth_http_timeout 60s;
+Context:	mail, server
+Sets the timeout for communication with the authentication server.
+Protocol
+The HTTP protocol is used to communicate with the authentication server. The data in the response body is ignored, the information is passed only in the headers.
+Examples of requests and responses:
+Request:
+GET /auth HTTP/1.0
+Host: localhost
+Auth-Method: plain # plain/apop/cram-md5/external
+Auth-User: user
+Auth-Pass: password
+Auth-Protocol: imap # imap/pop3/smtp
+Auth-Login-Attempt: 1
+Client-IP: 192.0.2.42
+Client-Host: client.example.org
+Good response:
+HTTP/1.0 200 OK
+Auth-Status: OK
+Auth-Server: 198.51.100.1
+Auth-Port: 143
+Bad response:
+HTTP/1.0 200 OK
+Auth-Status: Invalid login or password
+Auth-Wait: 3
+If there is no “Auth-Wait” header, an error will be returned and the connection will be closed. The current implementation allocates memory for each authentication attempt. The memory is freed only at the end of a session. Therefore, the number of invalid authentication attempts in a single session must be limited — the server must respond without the “Auth-Wait” header after 10-20 attempts (the attempt number is passed in the “Auth-Login-Attempt” header).
+When the APOP or CRAM-MD5 are used, request-response will look as follows:
+GET /auth HTTP/1.0
+Host: localhost
+Auth-Method: apop
+Auth-User: user
+Auth-Salt: <238188073.1163692009@mail.example.com>
+Auth-Pass: auth_response
+Auth-Protocol: imap
+Auth-Login-Attempt: 1
+Client-IP: 192.0.2.42
+Client-Host: client.example.org
+Good response:
+HTTP/1.0 200 OK
+Auth-Status: OK
+Auth-Server: 198.51.100.1
+Auth-Port: 143
+Auth-Pass: plain-text-pass
+If the “Auth-User” header exists in the response, it overrides the username used to authenticate with the backend.
+For the SMTP, the response additionally takes into account the “Auth-Error-Code” header — if exists, it is used as a response code in case of an error. Otherwise, the 535 5.7.0 code will be added to the “Auth-Status” header.
+For example, if the following response is received from the authentication server:
+HTTP/1.0 200 OK
+Auth-Status: Temporary server problem, try again later
+Auth-Error-Code: 451 4.3.0
+Auth-Wait: 3
+then the SMTP client will receive an error
+451 4.3.0 Temporary server problem, try again later
+If proxying SMTP does not require authentication, the request will look as follows:
+GET /auth HTTP/1.0
+Host: localhost
+Auth-Method: none
+Auth-User:
+Auth-Pass:
+Auth-Protocol: smtp
+Auth-Login-Attempt: 1
+Client-IP: 192.0.2.42
+Client-Host: client.example.org
+Auth-SMTP-Helo: client.example.org
+Auth-SMTP-From: MAIL FROM: <>
+Auth-SMTP-To: RCPT TO: <postmaster@mail.example.com>
+For the SSL/TLS client connection (1.7.11), the “Auth-SSL” header is added, and “Auth-SSL-Verify” will contain the result of client certificate verification, if enabled: “SUCCESS”, “FAILED:reason”, and “NONE” if a certificate was not present.
+Prior to version 1.11.7, the “FAILED” result did not contain the reason string.
+When the client certificate was present, its details are passed in the following request headers: “Auth-SSL-Subject”, “Auth-SSL-Issuer”, “Auth-SSL-Serial”, and “Auth-SSL-Fingerprint”. If auth_http_pass_client_cert is enabled, the certificate itself is passed in the “Auth-SSL-Cert” header. The request will look as follows:
+GET /auth HTTP/1.0
+Host: localhost
+Auth-Method: plain
+Auth-User: user
+Auth-Pass: password
+Auth-Protocol: imap
+Auth-Login-Attempt: 1
+Client-IP: 192.0.2.42
+Auth-SSL: on
+Auth-SSL-Verify: SUCCESS
+Auth-SSL-Subject: /CN=example.com
+Auth-SSL-Issuer: /CN=example.com
+Auth-SSL-Serial: C07AD56B846B5BFF
+Auth-SSL-Fingerprint: 29d6a80a123d13355ed16b4b04605e29cb55a5ad
+
+//
+Module ngx_stream_keyval_module
+Example Configuration
+Directives
+     keyval
+     keyval_zone
+The ngx_stream_keyval_module module (1.13.7) creates variables with values taken from key-value pairs managed by the API.
+This module is available as part of our commercial subscription.
+Example Configuration
+http {
+
+    server {
+        ...
+        location /api {
+            api write=on;
+        }
+    }
+}
+
+stream {
+
+    keyval_zone zone=one:32k state=/var/lib/nginx/state/one.keyval;
+    keyval      $ssl_server_name $name zone=one;
+
+    server {
+        listen              12345 ssl;
+        proxy_pass          $name;
+        ssl_certificate     /usr/local/nginx/conf/cert.pem;
+        ssl_certificate_key /usr/local/nginx/conf/cert.key;
+    }
+}
+Directives
+Syntax:	keyval key $variable zone=name;
+Default:	—
+Context:	stream
+Creates a new $variable whose value is looked up by the key in the key-value database. Matching rules are defined by the type parameter of the keyval_zone directive. The database is stored in a shared memory zone specified by the zone parameter.
+Syntax:	keyval_zone zone=name:size [state=file] [timeout=time] [type=string|ip|prefix] [sync];
+Default:	—
+Context:	stream
+Sets the name and size of the shared memory zone that keeps the key-value database. Key-value pairs are managed by the API.
+The optional state parameter specifies a file that keeps the current state of the key-value database in the JSON format and makes it persistent across nginx restarts.
+Examples:
+keyval_zone zone=one:32k state=/var/lib/nginx/state/one.keyval; # path for Linux
+keyval_zone zone=one:32k state=/var/db/nginx/state/one.keyval;  # path for FreeBSD
+The optional timeout parameter (1.15.0) sets the time after which key-value pairs are removed from the zone.
+The optional type parameter (1.17.1) activates an extra index optimized for matching the key of a certain type and defines matching rules when evaluating a keyval $variable.
+The index is stored in the same shared memory zone and thus requires additional storage.
+type=string
+default, no index is enabled; variable lookup is performed using exact match of the record key and a search key
+type=ip
+the search key is the textual representation of IPv4 or IPv6 address or CIDR range; to match a record key, the search key must belong to a subnet specified by a record key or exactly match an IP address
+type=prefix
+variable lookup is performed using prefix match of a record key and a search key (1.17.5); to match a record key, the record key must be a prefix of the search key
+The optional sync parameter (1.15.0) enables synchronization of the shared memory zone. The synchronization requires the timeout parameter to be set.
+If the synchronization is enabled, removal of key-value pairs (no matter one or all) will be performed only on a target cluster node. The same key-value pairs on other cluster nodes will be removed upon timeout.
+
