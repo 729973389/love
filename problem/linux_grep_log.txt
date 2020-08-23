@@ -1,0 +1,9 @@
+problem:
+查看edgeDaemon日志
+why:
+日志很多，看起来太麻烦
+how:
+$grep "edgeDaemon" /var/log/syslog | tail -n 20  或者
+$tail -n 50 /var/log/syslog | grep "edgeDaemon" 
+将日志里关于edgeDaemon服务的
+内容的最后20行打印出来。原理是先grep  找到log文件里所有的edgeDaemon信息，通过 | 匿名管道输出给tail ，tail将接收到的信息进行处理输出-n 20。
