@@ -1,6 +1,0 @@
-syntax = "proto3";
-package protobuf;
-option go_package = "";
-message CPUInfo {
-  float CPUUsed = 1;
-}
