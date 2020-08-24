@@ -3,8 +3,5 @@ package protobuf;
 import "system.proto";
 message InterfaceEdge{
   string serialNumber = 1;
-  string token = 3;
   protobuf.SystemInfo data = 2;
-  string hmac = 4;
-
 }

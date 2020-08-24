@@ -1,0 +1,13 @@
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+import "author.proto";
+import "edgeInfo.proto";
+message message{
+  oneof switch{
+    protobuf.author author = 1;
+    protobuf.edgeInfo edgeInfo = 2;
+
+  }
+}
+

@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
@@ -146,38 +147,40 @@ func (c *Client) readPump() {
 			}
 			switch mt {
 			case websocket.BinaryMessage:
-				//edgeBuf := protobuf.ReadEdge(message)
-				//once.Do(func() {
-				//	if edgeBuf.Token == "" ||edgeBuf.Hmac==""{
-				//		c.Hub.UnRegister <- c
-				//		return
-				//	}
-				//	c.SerialNumber = edgeBuf.SerialNumber
-				//	c.Token = edgeBuf.Token
-				//	c.Hmac = edgeBuf.Hmac
-				//	if !c.CheckHmac() {
-				//		c.Hub.UnRegister <- c
-				//		return
-				//	}
-				//	c.Hub.HttpRegister <- c
-				//})
+				messageInfo := &protobuf.Message{}
+				err := proto.Unmarshal(message, messageInfo)
+				if err != nil {
+					log.Error("Read: ", err)
+					break
+				}
+				switch messageType := messageInfo.Switch.(type) {
+				case *protobuf.Message_Author:
+					log.Error("Author massage is not allowed")
+					break
+				case *protobuf.Message_EdgeInfo:
+					edgeInfo := messageType.EdgeInfo
+					b, err := proto.Marshal(edgeInfo)
+					if err != nil {
+						log.Error(err)
+					}
+					c.Send <- message
+					c.Hub.HttpMessage <- b
+				}
 
-				c.Send <- message
-				c.Hub.HttpMessage <- message
 			}
 		}
 	}
 }
 
-func CheckHmac(m string, s string) bool {
+func CheckHmac(author *protobuf.Author) bool {
 	var b = []byte(GetConfig().Key)
 	hash := hmac.New(sha256.New, b)
 
-	_, err := hash.Write([]byte(s))
+	_, err := hash.Write([]byte(author.SerialNumber + author.Time))
 	if err != nil {
 		log.Warning("Get hash: ", err)
 	}
-	if hex.EncodeToString(hash.Sum(nil)) == m {
+	if hex.EncodeToString(hash.Sum(nil)) == author.Hmac {
 		log.Println("Check hash success")
 		return true
 	}
@@ -195,21 +198,35 @@ func Check(conn *websocket.Conn) (string, bool) {
 		conn.Close()
 		return "", false
 	}
-	edgeBuf := protobuf.ReadEdge(message)
-	if edgeBuf.Hmac == "" || edgeBuf.Token == "" || edgeBuf.SerialNumber == "" {
-		log.Error("No check information: ", conn.RemoteAddr())
+	edgeBuf := &protobuf.Message{}
+	err = proto.Unmarshal(message, edgeBuf)
+	if err != nil {
+		log.Error("Message: ", err)
+	}
+	switch m := edgeBuf.Switch.(type) {
+	case *protobuf.Message_EdgeInfo:
 		conn.Close()
 		return "", false
+	case *protobuf.Message_Author:
+		author := m.Author
+		if author.Hmac == "" || author.Token == "" || author.SerialNumber == "" {
+			log.Error("No check information: ", conn.RemoteAddr())
+			conn.Close()
+			return "", false
+		}
+		if !CheckHmac(author) {
+			conn.Close()
+			return "", false
+		}
+		if !GEtInfo(author.Token, author.SerialNumber) {
+			log.Error("Close connection: ", conn.RemoteAddr())
+			conn.Close()
+			return "", false
+		}
+		PutStatus(author.SerialNumber, true)
+		return author.SerialNumber, true
 	}
-	if !CheckHmac(edgeBuf.Hmac, edgeBuf.SerialNumber) {
-		conn.Close()
-		return "", false
-	}
-	if !GEtInfo(edgeBuf.Token, edgeBuf.SerialNumber) {
-		log.Error("Close connection: ", conn.RemoteAddr())
-		conn.Close()
-		return "", false
-	}
-	PutStatus(edgeBuf.SerialNumber, true)
-	return edgeBuf.SerialNumber, true
+	conn.Close()
+	return "", false
+
 }

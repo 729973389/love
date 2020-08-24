@@ -12,6 +12,7 @@ import (
 	"github.com/wuff1996/edgeDaemon/internal/protobuf"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 )
 
@@ -39,8 +40,11 @@ func RunTCP() {
 	if err != nil {
 		log.Panic(err)
 	}
-	secret := &protobuf.EdgeInfo{SerialNumber: id, Token: token, Hmac: GetHashMac(id)}
-	b := protobuf.GetBufEdgeInfo(secret)
+	time := GetTime()
+	message := protobuf.SetOneOfAuthor(id, token, time, GetHashMac(id, time))
+	//secret := &protobuf.EdgeInfo{SerialNumber: id, Token: token, Hmac: GetHashMac(id,time),Time:time }
+	//b := protobuf.GetBufEdgeInfo(secret)
+	b, err := proto.Marshal(message)
 	err = c.WriteMessage(websocket.BinaryMessage, b)
 	if err != nil {
 		log.Error(err)
@@ -174,16 +178,24 @@ func (w *WS) Read() {
 		}
 		switch mt {
 		case websocket.BinaryMessage:
-			edgeInfo := &protobuf.EdgeInfo{}
-			err := proto.Unmarshal(message, edgeInfo)
+			messageInfo := &protobuf.Message{}
+			err := proto.Unmarshal(message, messageInfo)
 			if err != nil {
-				log.Warning(err)
+				log.Error("Read: ", err)
 			}
-			b, err := json.MarshalIndent(edgeInfo, "", " ")
-			if err != nil {
-				log.WithError(err)
+			switch t := messageInfo.Switch.(type) {
+			case *protobuf.Message_Author:
+				break
+			case *protobuf.Message_EdgeInfo:
+				edgeInfo := t.EdgeInfo
+				b, err := json.MarshalIndent(edgeInfo, "", " ")
+				if err != nil {
+					log.WithError(err)
+				}
+				fmt.Println(string(b))
+
 			}
-			fmt.Println(string(b))
+
 		case websocket.CloseMessage:
 			log.Error("CONNECTION WAS CLOSED BY HUB")
 			return
@@ -205,40 +217,44 @@ func (w *WS) LoopInfo() {
 			SerialNumber: w.SerialNumber,
 			Data:         &systemInfo,
 		}
-		message := protobuf.GetBufEdgeInfo(edgeInfo)
-		w.Send <- message
+		message := &protobuf.Message{Switch: &protobuf.Message_EdgeInfo{EdgeInfo: edgeInfo}}
+		b, err := proto.Marshal(message)
+		if err != nil {
+			log.Error("marshal: ", err)
+		}
+		w.Send <- b
 		time.Sleep(30 * time.Minute)
 	}
 
 }
 
-func GetHashMac(id string) string {
+func GetHashMac(id string, time string) string {
 	var key = "3141592666"
 	var b = []byte(key)
 	hash := hmac.New(sha256.New, b)
 
-	_, err := hash.Write([]byte(id))
+	_, err := hash.Write([]byte(id + time))
 	if err != nil {
 		log.Warning("Get hash: ", err)
 	}
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-//func GetTime() string {
-//	time, err := time.Now().UTC().MarshalText()
-//	var YYYYMMDDHH string
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	stime := fmt.Sprintf("%s", time)
-//	clear := []string{"-", ":", "T", "Z"}
-//	for _, v := range clear {
-//		stime = strings.Replace(stime, v, "", -1)
-//	}
-//	for i, v := range stime {
-//		if i < 10 {
-//			YYYYMMDDHH += string(v)
-//		}
-//	}
-//	return YYYYMMDDHH
-//}
+func GetTime() string {
+	time, err := time.Now().UTC().MarshalText()
+	var YYYYMMDDHH string
+	if err != nil {
+		log.Fatal(err)
+	}
+	stime := fmt.Sprintf("%s", time)
+	clear := []string{"-", ":", "T", "Z"}
+	for _, v := range clear {
+		stime = strings.Replace(stime, v, "", -1)
+	}
+	for i, v := range stime {
+		if i < 10 {
+			YYYYMMDDHH += string(v)
+		}
+	}
+	return YYYYMMDDHH
+}
