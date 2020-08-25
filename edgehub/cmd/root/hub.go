@@ -1,6 +1,7 @@
 package root
 
 import (
+	"context"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,7 +30,8 @@ func NewHub() *Hub {
 }
 
 //select from channel to register and unregister
-func (hub *Hub) Run() {
+func (hub *Hub) Run(ctx context.Context) {
+	defer log.Warning("Close", "Run")
 	for {
 		select {
 		case client := <-hub.Register:
@@ -46,7 +48,14 @@ func (hub *Hub) Run() {
 				hub.HttpUnRegister <- client
 				log.Warning("unregister: ", client.Conn.RemoteAddr())
 			}
-
+		case <-ctx.Done():
+			close(hub.UnRegister)
+			close(hub.Register)
+			close(hub.HttpRegister)
+			close(hub.HttpMessage)
+			close(hub.Broadcast)
+			log.Warning("close Hub.Run")
+			return
 		}
 
 	}

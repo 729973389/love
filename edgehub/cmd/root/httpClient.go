@@ -16,13 +16,21 @@ type HttpClient struct {
 }
 
 func Serve(hub *Hub) {
+	defer log.Warning("Close", "Serve")
 	hc := &HttpClient{Hub: hub}
-
 	for {
 		select {
-		case message := <-hc.Hub.HttpMessage:
+		case message, ok := <-hc.Hub.HttpMessage:
+			if !ok {
+				log.Warning("HttpRegister", "channel closed")
+				return
+			}
 			hc.SendData(message)
-		case c := <-hc.Hub.HttpUnRegister:
+		case c, ok := <-hc.Hub.HttpUnRegister:
+			if !ok {
+				log.Warning("HttpUnregister ", "channel closed")
+				return
+			}
 			PutStatus(c.SerialNumber, false)
 
 		}

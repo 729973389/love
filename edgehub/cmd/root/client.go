@@ -1,6 +1,7 @@
 package root
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -29,7 +30,7 @@ type Client struct {
 var UpGrader = websocket.Upgrader{}
 
 //upgrade the http to websocket with client,register every client to hub
-func Servews(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := UpGrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error("upgrade: ", err)
@@ -44,6 +45,15 @@ func Servews(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client.Hub.Register <- client
 	go client.readPump()
 	go client.WritePump()
+	for {
+		select {
+		case <-ctx.Done():
+			client.Conn.Close()
+			close(client.PingPong)
+			log.Warning("Close", "Servews")
+			return
+		}
+	}
 }
 
 //send all message from this goroutine

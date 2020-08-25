@@ -1,6 +1,7 @@
 package root
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -10,9 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeDaemon/internal/protobuf"
-	"os"
-	"os/signal"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -20,10 +20,15 @@ type WS struct {
 	Conn         *websocket.Conn
 	Send         chan []byte
 	PingPong     chan int
-	signalCh     chan os.Signal
+	signalCh     chan string
 	SerialNumber string
 	Token        string
 }
+
+var (
+	Version = "v1"
+	Build   = "N/A"
+)
 
 const writeTime = 10 * time.Second
 const pongTime = 120 * time.Second
@@ -32,54 +37,48 @@ const ping = 15
 
 var dialer = websocket.Dialer{}
 
-func RunTCP() {
-	var url = GetConfig().Url
-	var id = GetConfig().SerialNumber
-	var token = GetConfig().Token
+func RunTCP(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+	config := GetConfig()
+	url := config.Url
+	id := config.SerialNumber
+	token := config.Token
 	c, _, err := dialer.Dial("ws://"+url, nil)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
+		return
 	}
+	defer c.Close()
 	time := GetTime()
 	message := protobuf.SetOneOfAuthor(id, token, time, GetHashMac(id, time))
-	//secret := &protobuf.EdgeInfo{SerialNumber: id, Token: token, Hmac: GetHashMac(id,time),Time:time }
-	//b := protobuf.GetBufEdgeInfo(secret)
 	b, err := proto.Marshal(message)
 	err = c.WriteMessage(websocket.BinaryMessage, b)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	w := &WS{
+	ws := &WS{
 		Conn:         c,
 		Send:         make(chan []byte, 1024),
 		PingPong:     make(chan int, 5),
-		signalCh:     make(chan os.Signal, 1),
 		SerialNumber: id,
+		signalCh:     make(chan string, 1),
 		Token:        token,
 	}
-	signal.Notify(w.signalCh)
-	go w.Write()
-	go w.Read()
-	go w.LoopInfo()
-	go func() {
-		for {
-			select {
-			case s := <-w.signalCh:
-				switch s {
-				case os.Interrupt:
-					log.Error("interrupt")
-					os.Exit(0)
-				case os.Kill:
-					log.Error("EXIT")
-					os.Exit(0)
+	go ws.Write()
+	go ws.Read()
+	go ws.LoopInfo()
 
-				}
-			}
-
+	for {
+		select {
+		case <-ctx.Done():
+			log.Warning("closing run")
+			return
+		case s := <-ws.signalCh:
+			log.Warning("Closing: ", s)
+			return
 		}
-	}()
-
+	}
 }
 
 func (w *WS) Write() {
@@ -88,6 +87,7 @@ func (w *WS) Write() {
 	defer func() {
 		timer.Stop()
 		w.Conn.Close()
+		w.signalCh <- "write"
 	}()
 	for {
 		select {
@@ -130,7 +130,7 @@ func (w *WS) Write() {
 			timerCount = 0
 		case <-timer.C:
 			if timerCount >= 4 {
-				w.signalCh <- os.Interrupt
+
 			}
 			if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
 				log.Println("set write deadline: ", err)
@@ -139,14 +139,13 @@ func (w *WS) Write() {
 				log.Println("ping: ", err)
 			}
 		}
-
 	}
-
 }
 
 func (w *WS) Read() {
+
 	defer func() {
-		w.signalCh <- os.Kill
+		w.signalCh <- "read"
 		w.Conn.Close()
 	}()
 	if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
