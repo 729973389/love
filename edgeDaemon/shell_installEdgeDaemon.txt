@@ -1,7 +1,0 @@
-cd /tmp; wget http://localhost:54321/installEdgeDaemon.tar.gz ;
-tar zxvf installEdgeDaemon.tar.gz ;
-cd installEdgeDaemon ;
-sh install.sh localhost:
-43211/hub wuff1996 6991ffuw;
-cd - 
-
