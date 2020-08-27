@@ -84,10 +84,10 @@ func RunTCP(ctx context.Context, wg *sync.WaitGroup, hub *Hub) {
 }
 
 func (w *WS) Write() {
-	timer := time.NewTimer(pongTime)
-	var timerCount = 0
+	//timer := time.NewTimer(pongTime)
+	//var timerCount = 0
 	defer func() {
-		timer.Stop()
+		//timer.Stop()
 		w.Conn.Close()
 		w.signalCh <- "write"
 	}()
@@ -106,16 +106,16 @@ func (w *WS) Write() {
 				log.Println("pong")
 			case ping:
 				if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
-					log.WithField("set write deadline", err)
+					log.Error("set write deadline", err)
 				}
 				if err := w.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					log.WithField("ping", err)
+					log.Error("ping", err)
 					continue
 				}
-				log.Println("ping")
+				log.Println("ping: ", w.Conn.RemoteAddr())
 			}
-			timer.Reset(pongTime)
-			timerCount = 0
+			//timer.Reset(pongTime)
+			//timerCount = 0
 		case message, ok := <-w.Send:
 			if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
 				log.Println("set write deadline: ", err)
@@ -128,18 +128,18 @@ func (w *WS) Write() {
 				log.Println("write message: ", err)
 			}
 			log.Println("write success")
-			timer.Reset(pongTime)
-			timerCount = 0
-		case <-timer.C:
-			if timerCount >= 4 {
-
-			}
-			if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
-				log.Println("set write deadline: ", err)
-			}
-			if err := w.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Println("ping: ", err)
-			}
+			//	timer.Reset(pongTime)
+			//	timerCount = 0
+			//case <-timer.C:
+			//	if timerCount >= 4 {
+			//
+			//	}
+			//	if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
+			//		log.Println("set write deadline: ", err)
+			//	}
+			//	if err := w.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			//		log.Println("ping: ", err)
+			//	}
 		}
 	}
 }
@@ -150,21 +150,18 @@ func (w *WS) Read() {
 		w.signalCh <- "read"
 		w.Conn.Close()
 	}()
-	if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-		log.Println("set read deadline: ", err)
-	}
 	w.Conn.SetPingHandler(func(appData string) error {
 		log.Println("receive ping")
-		if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-			log.Println("set read deadline: ", err)
-		}
+		//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
+		//	log.Println("set read deadline: ", err)
+		//}
 		w.PingPong <- websocket.PingMessage
 		return nil
 	})
 	w.Conn.SetPongHandler(func(appData string) error {
-		if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-			log.Warning(err)
-		}
+		//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
+		//	log.Warning(err)
+		//}
 		log.Println("receive pong")
 
 		return nil
@@ -195,9 +192,7 @@ func (w *WS) Read() {
 				}
 				w.Hub.Down <- b
 				fmt.Println(string(b))
-
 			}
-
 		case websocket.CloseMessage:
 			log.Error("CONNECTION WAS CLOSED BY HUB")
 			return

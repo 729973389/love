@@ -69,21 +69,20 @@ func (c *Client) WritePump() {
 		case mt := <-c.PingPong:
 			switch mt {
 			case websocket.PingMessage:
-				err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
-				if err != nil {
-					log.Warning("set write deadline: ", err)
-				}
-				err = c.Conn.WriteMessage(websocket.PongMessage, nil)
-				if err != nil {
-					log.Warning(err)
-				}
-				log.Println("pong: ", c.Conn.RemoteAddr())
+				//err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
+				//if err != nil {
+				//	log.Warning("set write deadline: ", err)
+				//}
+				//err = c.Conn.WriteMessage(websocket.PongMessage, nil)
+				//if err != nil {
+				//	log.Warning(err)
+				//}
+				//log.Println("pong: ", c.Conn.RemoteAddr())
 				timer.Reset(pingPeriod)
 				timerCount = 0
 			case websocket.PongMessage:
 				timer.Reset(pingPeriod)
 				timerCount = 0
-
 			}
 		case message, ok := <-c.Send:
 			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
@@ -103,13 +102,13 @@ func (c *Client) WritePump() {
 				break
 			}
 			timerCount++
-			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
-			if err != nil {
-				log.Warning("set write deadline: ", err)
-			}
-			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
+			//err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
+			//if err != nil {
+			//	log.Warning("set write deadline: ", err)
+			//}
+			//if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			//	return
+			//}
 		}
 
 	}

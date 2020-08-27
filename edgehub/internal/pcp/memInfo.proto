@@ -1,0 +1,10 @@
+syntax = "proto3";
+package pcp;
+option go_package = "pcp";
+message MEMInfo{
+  string Total = 1;
+  string Used = 2;
+  string Free = 3;
+  string Buffer = 4;
+
+}

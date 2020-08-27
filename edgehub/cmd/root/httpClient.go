@@ -102,9 +102,9 @@ func GEtInfo(t string, s string) bool {
 	for _, v := range ft1 {
 		if strings.Contains(v, "\"token\":") {
 			tokens := strings.Split(v, "\"")
-			for _, v2 := range tokens {
-				if strings.ContainsAny(v2, "0123456789abcd") {
-					token = v2
+			for i2, v2 := range tokens {
+				if v2 == ":" {
+					token = tokens[i2+1]
 					break
 				}
 			}

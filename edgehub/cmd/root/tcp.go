@@ -17,7 +17,9 @@ func Run(ctx context.Context, wg *sync.WaitGroup) {
 	go hub.Run(ctx)
 	go Serve(hub)
 	flag.Parse()
+	//Mux holds the map that server looks up from pattern to handler
 	router := http.NewServeMux()
+	//hook the handler,do something before or after it.
 	router.Handle("/mid", Middleware(http.Handler(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		Servews(ctx, hub, writer, request)
 	}))))
