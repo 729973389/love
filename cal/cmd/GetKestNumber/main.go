@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-const k = 1
+const k = 15
 
 var slice = make([]int, 0)
 
@@ -13,6 +13,9 @@ func main() {
 	fmt.Println(GetKestNumber(0))
 	fmt.Println(GetKestNumber(5))
 	fmt.Println(GetKestNumber(6))
+	fmt.Println(GetKestNumber(0))
+	fmt.Println(GetKestNumber(1))
+	fmt.Println(GetKestNumber(2))
 	fmt.Println(GetKestNumber(0))
 	fmt.Println(slice)
 
