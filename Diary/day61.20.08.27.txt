@@ -1,0 +1,139 @@
+||redis:
+Redis(remote directionary server ) is an open-source, networked, in-memory, key-value data store with optional durability.
+install:  $ docker pull redis
+start a redis instance:
+$ docker run --name some-redis -d redis
+start with persistent storage:
+$ docker run --name some-redis -d redis redis-server --appendonly yes
+If persistence is enabled, data is stored in the VOLUME /data, which can be used with --volumes-from some-volume-container or -v /docker/host/dir:/data (see docs.docker volumes).
+
+connecting via redis-cli
+$ docker run -it --network some-network --rm redis redis-cli -h some-redis
+
+You can create your own Dockerfile that adds a redis.conf from the context into /data/, like so.
+FROM redis
+COPY redis.conf /usr/local/etc/redis/redis.conf
+CMD [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+
+Alternatively, you can specify something along the same lines with docker run options.
+$ docker run -v /myredis/conf/redis.conf:/usr/local/etc/redis/redis.conf --name myredis redis redis-server /usr/local/etc/redis/redis.conf
+
+redis-cli
+Redis常见数据结构使用场景
+1. String
+
+常用命令:  set,get,decr,incr,mget 等。
+
+String数据结构是简单的key-value类型，value其实不仅可以是String，也可以是数字。
+常规key-value缓存应用；
+常规计数：微博数，粉丝数等。
+2.Hash
+
+常用命令： hget,hset,hgetall 等。
+
+Hash是一个string类型的field和value的映射表，hash特别适合用于存储对象。 比如我们可以Hash数据结构来存储用户信息，商品信息等等。
+举个例子： 最近做的一个电商网站项目的首页就使用了redis的hash数据结构进行缓存，因为一个网站的首页访问量是最大的，所以通常网站的首页可以通过redis缓存来提高性能和并发量。我用jedis客户端来连接和操作我搭建的redis集群或者单机redis，利用jedis可以很容易的对redis进行相关操作，总的来说从搭一个简单的集群到实现redis作为缓存的整个步骤不难。感兴趣的可以看我昨天写的这篇文章：
+《一文轻松搞懂redis集群原理及搭建与使用》： juejin.im/post/684490…
+3.List
+
+常用命令: lpush,rpush,lpop,rpop,lrange等
+
+list就是链表，Redis list的应用场景非常多，也是Redis最重要的数据结构之一，比如微博的关注列表，粉丝列表，最新消息排行等功能都可以用Redis的list结构来实现。
+Redis list的实现为一个双向链表，即可以支持反向查找和遍历，更方便操作，不过带来了部分额外的内存开销。
+4.Set
+
+常用命令：
+sadd,spop,smembers,sunion 等
+
+set对外提供的功能与list类似是一个列表的功能，特殊之处在于set是可以自动排重的。
+当你需要存储一个列表数据，又不希望出现重复数据时，set是一个很好的选择，并且set提供了判断某个成员是否在一个set集合内的重要接口，这个也是list所不能提供的。
+在微博应用中，可以将一个用户所有的关注人存在一个集合中，将其所有粉丝存在一个集合。Redis可以非常方便的实现如共同关注、共同喜好、二度好友等功能。
+5.Sorted Set
+
+常用命令： zadd,zrange,zrem,zcard等
+
+和set相比，sorted set增加了一个权重参数score，使得集合中的元素能够按score进行有序排列。
+举例： 在直播系统中，实时排行信息包含直播间在线用户列表，各种礼物排行榜，弹幕消息（可以理解为按消息维度的消息排行榜）等信息，适合使用Redis中的SortedSet结构进行存储。
+edis 内存数据集大小上升到一定大小的时候，就会施行数据淘汰策略（回收策略）。redis 提供 6种数据淘汰策略：
+
+volatile-lru：从已设置过期时间的数据集（server.db[i].expires）中挑选最近最少使用的数据淘汰
+volatile-ttl：从已设置过期时间的数据集（server.db[i].expires）中挑选将要过期的数据淘汰
+volatile-random：从已设置过期时间的数据集（server.db[i].expires）中任意选择数据淘汰
+allkeys-lru：从数据集（server.db[i].dict）中挑选最近最少使用的数据淘汰
+allkeys-random：从数据集（server.db[i].dict）中任意选择数据淘汰
+no-enviction（驱逐）：禁止驱逐数据
+
+Redis的并发竞争问题如何解决?
+Redis为单进程单线程模式，采用队列模式将并发访问变为串行访问。Redis本身没有锁的概念，Redis对于多个客户端连接并不存在竞争，但是在Jedis客户端对Redis进行并发访问时会发生连接超时、数据转换错误、阻塞、客户端关闭连接等问题，这些问题均是由于客户端连接混乱造成。对此有2种解决方法：
+ 1.客户端角度，为保证每个客户端间正常有序与Redis进行通信，对连接进行池化，同时对客户端读写Redis操作采用内部锁synchronized。
+ 
+2.服务器角度，利用setnx实现锁。
+ 注：对于第一种，需要应用程序自己处理资源的同步，可以使用的方法比较通俗，可以使用synchronized也可以使用lock；第二种需要用到Redis的setnx命令，但是需要注意一些问题。
+
+||平衡二叉树：
+性质：
+可以是空树。
+假如不是空树，任何一个结点的左子树与右子树都是平衡二叉树，并且高度之差的绝对值不超过 1。
+分布满足一定的规则
+BF(blance factory)平衡因子：左子树与右子树的高度差。
+最小失衡子树：
+在新插入的结点向上查找，以第一个平衡因子的绝对值超过 1 的结点为根的子树称为最小不平衡子树。也就是说，一棵失衡的树，是有可能有多棵子树同时失衡的。而这个时候，我们只要调整最小的不平衡子树，就能够将不平衡的树调整为平衡的树。
+平衡二叉树的失衡调整主要是通过旋转最小失衡子树来实现的。根据旋转的方向有两种处理方式，左旋 与 右旋 。旋转的目的就是减少高度，通过降低整棵树的高度来平衡。哪边的树高，就把那边的树向上旋转。
+以图 5.1.1 为例，加入新节点 99 后， 节点 66 的左子树高度为 1，右子树高度为 3，此时平衡因子为 -2。为保证树的平衡，此时需要对节点 66 做出旋转，因为右子树高度高于左子树，对节点进行左旋操作，流程如下：
+（1）节点的右孩子替代此节点位置 （2）右孩子的左子树变为该节点的右子树 （3）节点本身变为右孩子的左子树
+
+右旋操作与左旋类似，操作流程为：
+（1）节点的左孩子代表此节点 （2）节点的左孩子的右子树变为节点的左子树 （3）将此节点作为左孩子节点的右子树。
+
+
+在所有的不平衡情况中，都是按照先 寻找最小不平衡树，然后 寻找所属的不平衡类别，再 根据 4 种类别进行固定化程序的操作。
+LL , LR ，RR ，RL其实已经为我们提供了最后哪个结点作为新的根指明了方向。如 LR 型最后的根结点为原来的根的左孩子的右孩子，RL 型最后的根结点为原来的根的右孩子的左孩子。只要记住这四种情况，可以很快地推导出所有的情况。
+维护平衡二叉树，最麻烦的地方在于平衡因子的维护。
+
+||树的种类：
+树
+
+概念
+它是由n（n>0）个有限节点组成一个具有层次关系的集合。
+
+
+特点
+
+
+每个节点有零个或多个子节点；
+
+
+没有父节点的节点称为根节点；
+
+
+每一个非根节点有且只有一个父节点；
+
+
+除了根节点外，每个子节点可以分为多个不相交的子树；
+
+
+有序树和无序树
+
+
+无序树
+树中任意节点的子节点之间没有顺序关系，也称自由树；
+
+
+有序树
+树中任意节点的子节点之间有顺序关系
+
+
+相关术语
+节点的度：一个节点含有的子树的个数称为该节点的度；
+树的度：一棵树中，最大的节点的度称为树的度；
+叶节点或终端节点：度为零的节点；
+非终端节点或分支节点：度不为零的节点；
+父亲节点或父节点：若一个节点含有子节点，则这个节点称为其子节点的父节点；
+孩子节点或子节点：一个节点含有的子树的根节点称为该节点的子节点；
+兄弟节点：具有相同父节点的节点互称为兄弟节点；
+节点的层次：从根开始定义起，根为第1层，根的子节点为第2层，以此类推；
+树的高度或深度：树中节点的最大层次；
+堂兄弟节点：父节点在同一层的节点互为堂兄弟；
+节点的祖先：从根到该节点所经分支上的所有节点；
+子孙：以某节点为根的子树中任一节点都称为该节点的子孙。
+森林：由m（m>=0）棵互不相交的树的集合称为森林；

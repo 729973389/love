@@ -1,0 +1,19 @@
+||go vet
+会做代码静态检查发现可能的bug或者可疑的构造。vet是Go tool套件的一部分，我们会在以后的文章中详细描述tool套件。它和go编译器一起发布，这意味着它不需要额外的依赖，可以很方便地通过以下的命令调用：
+go vet ./package
+
+$go vet  ./cmd/root          //“.”声明在当前目录下，否则会从goroot下寻找！
+tag	描述
+-all	进行全部检查。如果有其他检查标记被设置，则命令程序会将此值变为false。默认值为true。
+-asmdecl	对汇编语言的源码文件进行检查。默认值为false。
+-assign	检查赋值语句。默认值为false。
+-atomic	检查代码中对代码包sync/atomic的使用是否正确。默认值为false。
+-composites	是否使用复合结构检查的白名单。仅供测试使用。默认值为true。
+-compositeWhiteList	对汇编语言的源码文件进行检查。默认值为false。
+-assign	检查赋值语句。默认值为false。
+-methods	检查那些拥有标准命名的方法的签名。默认值为false。
+-printf	检查代码中对打印函数的使用是否正确。默认值为false。
+-printfuncs	需要检查的代码中使用的打印函数的名称的列表，多个函数名称之间用英文半角逗号分隔。默认值为空字符串。
+-rangeloops	检查代码中对在range语句块中迭代赋值的变量的使用是否正确。默认值为false。
+-structtags	检查结构体类型的字段的标签的格式是否标准。默认值为false。
+-unreachable	查找并报告不可到达的代码。默认值为false。

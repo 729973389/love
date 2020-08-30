@@ -1,0 +1,56 @@
+||protobuf oneof
+oneof:If you have a message with many fields and where at most one field wi
+ll be set at the same time, you can enforce this behavior and save memory b
+y using the oneof feature.
+Oneof fields are like regular fields except all the fields in a oneof share
+ memory, and at most one field can be set at the same time.
+Use:
+messageInfo := &protobuf.Message{}
+$$
+				err := proto.Unmarshal(message, messageInfo)
+				if err != nil {
+					log.Error("Read: ", err)
+					break
+				}
+				switch messageType := messageInfo.Switch.(type) {
+				case *protobuf.Message_Author:
+					log.Error("Author massage is not allowed")
+					break
+				case *protobuf.Message_EdgeInfo:
+					edgeInfo := messageType.EdgeInfo
+					b, err := proto.Marshal(edgeInfo)
+					if err != nil {
+						log.Error(err)
+					}    $$
+and the oneof .proto looks like this:
+$$
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+import "author.proto";
+import "interfaceEdge.proto";
+message message{
+  oneof switch{  //You can add fields of any type, except map fields and repeated fields.
+    protobuf.author author = 1;
+    protobuf.InterfaceEdge edgeInfo = 2;
+  }
+}
+$$
+
+|oneof features:
+1.
+!!Setting a oneof field will automatically clear all other members of the
+ oneof.only the last field you set will still have a value.
+
+2.
+If the parser encounters multiple members of the same oneof on the wire, only the last member seen is used in the parsed message.
+
+3.
+A oneof cannot be repeated.
+
+4.
+Reflection APIs work for oneof fields.
+
+5.
+If you set a oneof field to the default value (such as setting an int32 oneof field to 0), the "case" of that oneof field will be set, and the value will be serialized on the wire.
+
