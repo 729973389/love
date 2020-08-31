@@ -13,13 +13,15 @@ import (
 var socketFile = "socket.json"
 
 func SetConfig() {
-	configSocket := &config.Url{}
+	configSocket := &config.Info{}
 	configSocket.Url = "http://192.168.32.150:8081"
 	configSocket.Socket = "43211"
-	configSocket.SendData = "/api/v2/edge/data/create"
+	configSocket.PostEdge = "/api/v2/edge/data/create"
 	configSocket.PutStatus = "/api/v2/edge/update/online"
 	configSocket.GetInfo = "/api/v2/edge/getInfo"
 	configSocket.Key = "3141592666"
+	configSocket.PostDevice = "/api/v1/iot/data/transfer"
+	//demo configSocket.GetCommand="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 	bs, err := json.MarshalIndent(configSocket, "", " ")
 	if err != nil {
 		log.WithError(err).WithField(socketFile, "Error")
@@ -35,7 +37,7 @@ func SetConfig() {
 	writers.Flush()
 }
 
-func GetConfig() config.Url {
+func GetConfig() config.Info {
 	for i := 0; i < 2; i++ {
 		b, err := ioutil.ReadFile(socketFile)
 		if err != nil {
@@ -45,13 +47,14 @@ func GetConfig() config.Url {
 				continue
 			}
 		}
-		socket := &config.Url{}
+		socket := &config.Info{}
 		err = json.Unmarshal(b, socket)
 		if err != nil {
 			log.Warning(err)
 		}
+		log.Println("Create default config file success")
 		return *socket
 
 	}
-	return config.Url{}
+	return config.Info{}
 }

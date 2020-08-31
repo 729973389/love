@@ -84,7 +84,7 @@ func (c *Client) WritePump() {
 				timer.Reset(pingPeriod)
 				timerCount = 0
 			}
-		case message, ok := <-c.Send:
+		case _, ok := <-c.Send:
 			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
 			if err != nil {
 				log.Warning("set write deadline: ", err)
@@ -93,7 +93,7 @@ func (c *Client) WritePump() {
 				c.Conn.WriteMessage(websocket.CloseMessage, nil)
 				return
 			}
-			c.Conn.WriteMessage(websocket.BinaryMessage, message)
+			//c.Conn.WriteMessage(websocket.BinaryMessage, message)
 			timer.Reset(pingPeriod)
 			timerCount = 0
 		case <-timer.C:
@@ -130,7 +130,7 @@ func (c *Client) readPump() {
 		if err != nil {
 			log.Warning(err)
 		}
-		log.Println("receive ping: ", appData)
+		//log.Println("receive ping: ", appData)
 		c.PingPong <- websocket.PingMessage
 		return nil
 	})
@@ -142,7 +142,6 @@ func (c *Client) readPump() {
 		log.Println("receive pong: ", appData)
 		c.PingPong <- websocket.PongMessage
 		return nil
-
 	})
 
 	for {

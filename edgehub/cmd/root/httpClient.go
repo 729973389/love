@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+var Info=GetConfig()
 type HttpClient struct {
 	Hub *Hub
 }
@@ -25,7 +26,7 @@ func Serve(hub *Hub) {
 				log.Warning("HttpRegister", "channel closed")
 				return
 			}
-			hc.SendData(message)
+			hc.PostEdge(message)
 		case c, ok := <-hc.Hub.HttpUnRegister:
 			if !ok {
 				log.Warning("HttpUnregister ", "channel closed")
@@ -37,8 +38,8 @@ func Serve(hub *Hub) {
 	}
 }
 
-func (c *HttpClient) SendData(b []byte) {
-	var route = GetConfig().Url + GetConfig().SendData
+func (c *HttpClient) PostEdge(b []byte) {
+	var route = Info.Url + Info.PostEdge
 	sysInfo := &protobuf.InterfaceEdge{}
 	if err := proto.Unmarshal(b, sysInfo); err != nil {
 		log.Error(err)
@@ -60,7 +61,7 @@ func (c *HttpClient) SendData(b []byte) {
 }
 
 func PutStatus(number string, status bool) {
-	var route = GetConfig().Url + GetConfig().PutStatus
+	var route = Info.Url + Info.PutStatus
 	httpInfo := &protobuf.HttpOnline{
 		SerialNumber: number,
 		Online:       status,
@@ -86,8 +87,8 @@ func PutStatus(number string, status bool) {
 }
 
 func GEtInfo(t string, s string) bool {
-	var route = GetConfig().Url + GetConfig().GetInfo + "?" + fmt.Sprint("serialNumber=", s)
-	log.Println(route) //test
+	var route = Info.Url + Info.GetInfo + "?" + fmt.Sprint("serialNumber=", s)
+	//log.Println(route) //test
 	var token string
 	resq, err := http.Get(route)
 	if err != nil {
@@ -117,4 +118,18 @@ func GEtInfo(t string, s string) bool {
 		return true
 	}
 	return false
+}
+
+func PostDeviceInfo(message []byte){
+	var route=Info.PostDevice
+	resp,err:=http.Post(route,"application/json",bytes.NewReader(message))
+	if err != nil {
+		log.Error("PostDeviceInfo: ",err)
+		return
+	}
+	defer resp.Body.Close()
+	var b =make([]byte,512)
+	resp.Body.Read(b)
+	log.Println("PostDeviceInfo: ",string(b))
+
 }

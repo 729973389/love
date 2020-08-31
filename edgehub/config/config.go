@@ -1,10 +1,12 @@
 package config
 
-type Url struct {
-	Url       string `json:"url"`
-	SendData  string `json:"sendData"`
-	Socket    string `json:"socket"`
-	PutStatus string `json:"putStatus"`
-	GetInfo   string `json:"getInfo"`
-	Key       string `json:"key"`
+type Info struct {
+	Url        string `json:"url"`
+	PostEdge   string `json:"postEdge"`
+	Socket     string `json:"socket"`
+	PutStatus  string `json:"putStatus"`
+	GetInfo    string `json:"getInfo"`
+	Key        string `json:"key"`
+	PostDevice string `json:"postDevice"`
+	//demo	GetCommand   string `json:"getCommand"`
 }
