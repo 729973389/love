@@ -13,3 +13,4 @@ RestartSec=45
 
 [Install]
 WantedBy=multi-user.target
+Alias=edgeDaemon

@@ -37,9 +37,11 @@ func main() {
 	}()
 	wg.Add(1)
 	hub := root.NewHub()
+	go root.Run(hub)
 	go root.RunTCP(ctx, &wg, hub)
 	wg.Wait()
+
 	cancel()
 	time.Sleep(10 * time.Second)
-	log.Println("EXIT")
+	log.Println("MAIN: EXIT")
 }

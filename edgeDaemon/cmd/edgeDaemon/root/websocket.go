@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeDaemon/internal/protobuf"
 	"strings"
@@ -217,7 +218,7 @@ func (w *WS) LoopInfo() {
 		message := &protobuf.Message{Switch: &protobuf.Message_EdgeInfo{EdgeInfo: edgeInfo}}
 		b, err := proto.Marshal(message)
 		if err != nil {
-			log.Error("marshal: ", err)
+			log.Error(errors.Wrap( err,"marshal proto"))
 		}
 		w.Send <- b
 		time.Sleep(30 * time.Minute)

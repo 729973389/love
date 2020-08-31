@@ -2,7 +2,9 @@ package root
 
 import (
 	"crypto/tls"
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"strings"
 )
@@ -39,8 +41,11 @@ func Run(hub *Hub) {
 	client := mqtt.NewClient(ops)
 	c = &Client{Hub: hub, Client: client, Send: make(chan []byte, 1024), Map: make(map[string]bool)}
 	if token := c.Client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatal(token.Error())
+		log.Fatal(errors.Wrap(token.Error(),"connect broker"))
 	}
+	//test////////////////////////////////////////////////////////////////////////////
+	c.Client.Subscribe("easyfetch/device/properties/"+"lxd", 0, messageHandler)
+	//////////////////////////////////////////////////////////////////////////////////
 	go c.Receive()
 }
 
@@ -54,7 +59,7 @@ func (c *Client) Receive() {
 				continue
 			}
 			if _, ok := c.Map[deviceId]; ok {
-				log.Warning(deviceId, "  already exit")
+				log.Warning(errors.Wrap(fmt.Errorf(deviceId), "  already exit"))
 				continue
 			}
 			c.Map[deviceId] = true
@@ -64,7 +69,7 @@ func (c *Client) Receive() {
 }
 
 var messageHandler mqtt.MessageHandler = func(client mqtt.Client, message mqtt.Message) {
-	c.Hub.Up <- message.Payload()
+	/////////c.Hub.Up <- message.Payload()
 	log.Println(string(message.Payload()))
 }
 
@@ -81,7 +86,7 @@ func FindDeviceId(b []byte) string {
 			}
 		}
 	}
-	log.Error("MQTT cant find deviceId")
+	log.Error("MQTT can‘t find deviceId")
 	return ""
 }
 
@@ -94,7 +99,5 @@ func (c *Client) PublishCommand() {
 				log.Warning(token.Error())
 			}
 		}
-
 	}
-
 }
