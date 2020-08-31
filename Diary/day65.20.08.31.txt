@@ -1,0 +1,57 @@
+||go trace 
+$$ import (
+"os"
+"runtime/trace"
+)
+
+func main() {
+	trace.Start(os.Stderr)
+	defer trace.Stop()
+	
+	.
+	.
+	.
+}
+
+$go run main.go 2>trace.out
+$go tool trace trace.out
+
+||http2
+piprlining:
+不等待响应，直接发送下一个请求，但是客户端还是要按照发送请求的顺序来接收响应。
+|HOLB(Head of line blocking)线头阻塞
+
+|http1.x:
+start line->header->body
+|http2.0:
+length->type->flags->stream id->payload
+HTTP2连接上传输的每个帧都关联一个stream.
+
+HTTP2还有一些比较重要的改动：
+使用HPACK对HTTP/2头部压缩
+服务器推送
+流量控制
+针对传输中的流进行控制(TCP默认的粒度是针对连接)
+流优先级（Stream Priority）它被用来告诉对端哪个流更重要。
+对称加密：
+加密和解密都是用同一个密钥
+非对称加密：
+加密用公开的密钥，解密用私钥
+(私钥只有自己知道，公开的密钥大家都知道)
+数字签名：
+验证传输的内容是对方发送的数据
+发送的数据没有被篡改过
+数字证书（Certificate Authority）简称CA
+认证机构证明是真实的服务器发送的数据。
+
+||go func 函数
+定义：
+函数包含连续的执行语句，在代码中通过调用函数来执行他们。函数将负责的工作切分成多
+个更小的模块，使得多人协作变得更加容易。此外，函数对使用者隐藏实现细节。
+|5.1 函数声明：
+函数声明包含：一个名字Name，一个形参列表(parameter-list),一个可选的返回列表(resu
+lt-list)以及函数体{}.
+func Name(parameter-list)(result-list){
+	body
+}
+
