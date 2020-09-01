@@ -11,6 +11,7 @@ import (
 )
 
 var socketFile = "socket.json"
+var Info = GetConfig()
 
 func SetConfig() {
 	configSocket := &config.Info{}
@@ -21,6 +22,7 @@ func SetConfig() {
 	configSocket.GetInfo = "/api/v2/edge/getInfo"
 	configSocket.Key = "3141592666"
 	configSocket.PostDevice = "/api/v1/iot/data/transfer"
+	configSocket.WebsocketServer = "http://192.168.32.11:9000"
 	//demo configSocket.GetCommand="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 	bs, err := json.MarshalIndent(configSocket, "", " ")
 	if err != nil {

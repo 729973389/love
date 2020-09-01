@@ -5,13 +5,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
-var Info=GetConfig()
+var longClient *http.Client
+
+const (
+	MaxIdleConns        int = 100
+	MaxIdleConnsPerHost int = 100
+)
+
+func init() {
+	longClient = &http.Client{
+		Timeout: 90 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				KeepAlive: 60 * time.Second,
+				Timeout:   60 * time.Second}).DialContext,
+			MaxIdleConns:        MaxIdleConns,
+			MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+		},
+	}
+}
+
 type HttpClient struct {
 	Hub *Hub
 }
@@ -49,7 +72,13 @@ func (c *HttpClient) PostEdge(b []byte) {
 		log.Warning("jsonMarshal: ", err)
 	}
 	log.Println("SEND DATA: ", string(b))
-	resp, err := http.Post(route, "application/json", bytes.NewReader(b))
+	req, err := http.NewRequest("POST", route, bytes.NewReader(b))
+	if err != nil {
+		log.Error(errors.Wrap(err, "postEdge"))
+	}
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := longClient.Do(req)
+	//resp, err := http.Post(route, "application/json", bytes.NewReader(b))
 	if err != nil {
 		log.Error("Get: ", err)
 		return
@@ -74,7 +103,7 @@ func PutStatus(number string, status bool) {
 	request, err := http.NewRequest("PUT", route, bytes.NewReader(b))
 	request.Header.Add("Content-Type", "application/json")
 	defer request.Body.Close()
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := longClient.Do(request)
 	if err != nil {
 		log.Error(err)
 		return
@@ -120,16 +149,23 @@ func GEtInfo(t string, s string) bool {
 	return false
 }
 
-func PostDeviceInfo(message []byte){
-	var route=Info.PostDevice
-	resp,err:=http.Post(route,"application/json",bytes.NewReader(message))
+func PostDeviceInfo(message []byte) {
+	var route = Info.WebsocketServer + Info.PostDevice
+	log.Info("PostDeviceInfo: ", string(message))
+	request, err := http.NewRequest("POST", route, strings.NewReader(string(message)))
 	if err != nil {
-		log.Error("PostDeviceInfo: ",err)
+		log.Error(errors.Wrap(err, "post deviceInfo"))
+	}
+	request.Header.Add("Content-Type", "application/json")
+	//resp,err:=http.Post(route,"application/json",bytes.NewReader(message))
+	resp, err := longClient.Do(request)
+	if err != nil {
+		log.Error("PostDeviceInfo: ", err)
 		return
 	}
 	defer resp.Body.Close()
-	var b =make([]byte,512)
+	var b = make([]byte, 512)
 	resp.Body.Read(b)
-	log.Println("PostDeviceInfo: ",string(b))
+	log.Println("PostDeviceInfo: ", string(b))
 
 }

@@ -3,9 +3,11 @@ package protobuf;
 option go_package = "";
 import "author.proto";
 import "interfaceEdge.proto";
+import "deviceInfo.proto";
 message message{
   oneof switch{
     protobuf.author author = 1;
     protobuf.InterfaceEdge edgeInfo = 2;
+    protobuf.deviceInfo deviceInfo = 3;
   }
 }

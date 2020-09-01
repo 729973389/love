@@ -5,5 +5,6 @@
  "putStatus": "/api/v2/edge/update/online",
  "getInfo": "/api/v2/edge/getInfo",
  "key": "3141592666",
- "postDevice": "/api/v1/iot/data/transfer"
+ "postDevice": "/api/v1/iot/data/transfer",
+ "websocketServer": "http://192.168.32.11:9000"
 }
