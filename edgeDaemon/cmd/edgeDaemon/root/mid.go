@@ -47,6 +47,7 @@ func Run(hub *Hub) {
 	c.Client.Subscribe("easyfetch/device/properties/"+"lxd", 0, messageHandler)
 	//////////////////////////////////////////////////////////////////////////////////
 	go c.Receive()
+	go c.PublishCommand()
 }
 
 func (c *Client) Receive() {
@@ -69,7 +70,7 @@ func (c *Client) Receive() {
 }
 
 var messageHandler mqtt.MessageHandler = func(client mqtt.Client, message mqtt.Message) {
-	/////////c.Hub.Up <- message.Payload()
+	c.Hub.Up <- message.Payload()
 	log.Println(string(message.Payload()))
 }
 

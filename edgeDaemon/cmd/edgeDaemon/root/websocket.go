@@ -94,6 +94,26 @@ func (w *WS) Write() {
 	}()
 	for {
 		select {
+		case b:=<-w.Hub.Up:
+			if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime));err!=nil{
+				log.Error(errors.Wrap(err,"hub up"))
+				continue
+			}
+			deviceInfo:=&protobuf.DeviceInfo{
+				DeviceId: "666",
+				Data: string(b),
+
+			}
+			message:=&protobuf.Message{Switch: &protobuf.Message_DeviceInfo{DeviceInfo: deviceInfo}}
+			bm,err:=proto.Marshal(message)
+			if err != nil{
+				log.Error(errors.Wrap(err,"hub up"))
+			}
+			if err := w.Conn.WriteMessage(websocket.BinaryMessage,bm);err!=nil{
+				log.Error(errors.Wrap(err,"hub up"))
+				continue
+			}
+			log.Info("write hub up")
 		case mt := <-w.PingPong:
 			switch mt {
 			case websocket.PingMessage:
@@ -218,7 +238,7 @@ func (w *WS) LoopInfo() {
 		message := &protobuf.Message{Switch: &protobuf.Message_EdgeInfo{EdgeInfo: edgeInfo}}
 		b, err := proto.Marshal(message)
 		if err != nil {
-			log.Error(errors.Wrap( err,"marshal proto"))
+			log.Error(errors.Wrap(err, "marshal proto"))
 		}
 		w.Send <- b
 		time.Sleep(30 * time.Minute)
@@ -230,7 +250,6 @@ func GetHashMac(id string, time string) string {
 	var key = "3141592666"
 	var b = []byte(key)
 	hash := hmac.New(sha256.New, b)
-
 	_, err := hash.Write([]byte(id + time))
 	if err != nil {
 		log.Warning("Get hash: ", err)
