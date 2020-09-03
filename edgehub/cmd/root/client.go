@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
 	http "net/http"
@@ -109,16 +110,12 @@ func (c *Client) WritePump() {
 				timer.Reset(pingPeriod)
 				timerCount = 0
 			}
-		case <-c.Send:
-			//err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
-			//if err != nil {
-			//	log.Warning("set write deadline: ", err)
-			//}
-			//if !ok {
-			//	c.Conn.WriteMessage(websocket.CloseMessage, nil)
-			//	return
-			//}
-			//c.Conn.WriteMessage(websocket.BinaryMessage, message)
+		case message := <-c.Send:
+			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
+			if err != nil {
+				log.Warning("set write deadline: ", err)
+			}
+			c.Conn.WriteMessage(websocket.BinaryMessage, message)
 			timer.Reset(pingPeriod)
 			timerCount = 0
 		case <-timer.C:
@@ -150,11 +147,11 @@ func (c *Client) readPump() {
 		c.Conn.Close()
 	}()
 	c.Conn.SetPingHandler(func(appData string) error {
-		err := c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-		if err != nil {
-			log.Warning(err)
-		}
-		log.Println("receive ping: ", appData)
+		//err := c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		//if err != nil {
+		//	log.Warning(err)
+		//}
+		//log.Println("receive ping: ", appData)
 		c.Time <- 1
 		c.PingPong <- websocket.PingMessage
 		return nil
@@ -190,7 +187,6 @@ func (c *Client) readPump() {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Error("read: ", err)
 				}
-				log.Error("Normal exit:", err)
 				break
 			}
 			switch mt {
@@ -215,13 +211,13 @@ func (c *Client) readPump() {
 					c.Hub.HttpMessage <- b
 					c.Time <- 1
 				case *protobuf.Message_DeviceInfo:
-					deviceInfo := messageType.DeviceInfo.Data
+					deviceData := messageType.DeviceInfo.Data
 					//device := DeviceInfo{DeviceId: deviceInfo.DeviceId, Data: deviceInfo.Data}
 					//b, err := json.Marshal(device)
 					//if err != nil {
 					//	log.Error(errors.Wrap(err, "deviceInfo"))
 					//}
-					PostDeviceInfo([]byte(deviceInfo))
+					PostDeviceInfo([]byte(deviceData))
 				}
 
 			}
@@ -235,7 +231,8 @@ func CheckHmac(author *protobuf.Author) bool {
 
 	_, err := hash.Write([]byte(author.SerialNumber + author.Time))
 	if err != nil {
-		log.Warning("Get hash: ", err)
+		log.Warning(errors.Wrap(err, "checkHmac"))
+		return false
 	}
 	if hex.EncodeToString(hash.Sum(nil)) == author.Hmac {
 		log.Println("Check hash success")
@@ -246,7 +243,7 @@ func CheckHmac(author *protobuf.Author) bool {
 }
 
 func Check(conn *websocket.Conn) string {
-	log.Info("checking")
+	log.Info("Checking")
 	mt, message, err := conn.ReadMessage()
 	if err != nil {
 		log.Error(err)
@@ -278,10 +275,11 @@ func Check(conn *websocket.Conn) string {
 			return ""
 		}
 		if !GEtInfo(author.Token, author.SerialNumber) {
-			log.Error("Close connection: ", conn.RemoteAddr())
+			log.Error("Check token failed: ", conn.RemoteAddr())
 			conn.Close()
 			return ""
 		}
+		log.Info("Check success:", conn.RemoteAddr())
 		PutStatus(author.SerialNumber, true)
 		return author.SerialNumber
 	}

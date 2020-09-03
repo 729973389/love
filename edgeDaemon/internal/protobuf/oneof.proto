@@ -4,12 +4,15 @@ option go_package = "";
 import "author.proto";
 import "edgeInfo.proto";
 import "deviceInfo.proto";
+import "deviceCommand.proto";
+import "deviceGister.proto";
 message message{
   oneof switch{
     protobuf.author author = 1;
     protobuf.edgeInfo edgeInfo = 2;
-    protobuf.deviceInfo deviceInfo=3;
-
+    protobuf.deviceInfo deviceInfo = 3;
+    protobuf.deviceCommand deviceCommand = 4;
+    protobuf.deviceGister deviceGister = 5;
   }
 }
 

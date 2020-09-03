@@ -15,15 +15,15 @@ var Info = GetConfig()
 
 func SetConfig() {
 	configSocket := &config.Info{}
-	configSocket.Url = "http://192.168.32.150:8081"
+	configSocket.EdgeInfoServer = "http://192.168.32.150:8081"
 	configSocket.Socket = "43211"
 	configSocket.PostEdge = "/api/v2/edge/data/create"
 	configSocket.PutStatus = "/api/v2/edge/update/online"
 	configSocket.GetInfo = "/api/v2/edge/getInfo"
 	configSocket.Key = "3141592666"
 	configSocket.PostDevice = "/api/v1/iot/data/transfer"
-	configSocket.WebsocketServer = "http://192.168.32.11:9000"
-	//demo configSocket.GetCommand="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+	configSocket.DeviceInfoServer = "http://192.168.32.11:9000"
+	configSocket.DeviceControlServer = "ws://192.168.32.150:8082/api/v1/ws/easyfetch"
 	bs, err := json.MarshalIndent(configSocket, "", " ")
 	if err != nil {
 		log.WithError(err).WithField(socketFile, "Error")

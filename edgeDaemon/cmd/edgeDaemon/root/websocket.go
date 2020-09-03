@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeDaemon/internal/protobuf"
-	"strings"
 	"sync"
 	"time"
 )
@@ -41,15 +40,19 @@ var dialer = websocket.Dialer{}
 
 func RunTCP(ctx context.Context, wg *sync.WaitGroup, hub *Hub) {
 	defer wg.Done()
-	config := GetConfig()
-	url := config.Url
-	id := config.SerialNumber
-	token := config.Token
-	c, _, err := dialer.Dial("ws://"+url, nil)
+	url := Config.Url
+	id := Config.SerialNumber
+	token := Config.Token
+	c, resp, err := dialer.Dial("ws://"+url, nil)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+	defer resp.Body.Close()
+	respByte := make([]byte, 512)
+	resp.Body.Read(respByte)
+	resp.Body.Close()
+	log.Info(string(respByte))
 	defer c.Close()
 	time := GetTime()
 	message := protobuf.SetOneOfAuthor(id, token, time, GetHashMac(id, time))
@@ -94,23 +97,22 @@ func (w *WS) Write() {
 	}()
 	for {
 		select {
-		case b:=<-w.Hub.Up:
-			if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime));err!=nil{
-				log.Error(errors.Wrap(err,"hub up"))
+		case b := <-w.Hub.Up:
+			if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
+				log.Error(errors.Wrap(err, "hub up"))
 				continue
 			}
-			deviceInfo:=&protobuf.DeviceInfo{
+			deviceInfo := &protobuf.DeviceInfo{
 				DeviceId: "666",
-				Data: string(b),
-
+				Data:     string(b),
 			}
-			message:=&protobuf.Message{Switch: &protobuf.Message_DeviceInfo{DeviceInfo: deviceInfo}}
-			bm,err:=proto.Marshal(message)
-			if err != nil{
-				log.Error(errors.Wrap(err,"hub up"))
+			message := &protobuf.Message{Switch: &protobuf.Message_DeviceInfo{DeviceInfo: deviceInfo}}
+			bm, err := proto.Marshal(message)
+			if err != nil {
+				log.Error(errors.Wrap(err, "hub up"))
 			}
-			if err := w.Conn.WriteMessage(websocket.BinaryMessage,bm);err!=nil{
-				log.Error(errors.Wrap(err,"hub up"))
+			if err := w.Conn.WriteMessage(websocket.BinaryMessage, bm); err != nil {
+				log.Error(errors.Wrap(err, "hub up"))
 				continue
 			}
 			log.Info("write hub up")
@@ -211,8 +213,15 @@ func (w *WS) Read() {
 				if err != nil {
 					log.WithError(err)
 				}
-				w.Hub.Down <- b
+				w.Hub.Command <- b
 				fmt.Println(string(b))
+			case *protobuf.Message_DeviceGister:
+				deviceGister := t.DeviceGister
+				switch deviceGister.Type {
+				case "bind":
+					w.Hub.Down <- []byte(deviceGister.String())
+				}
+
 			}
 		case websocket.CloseMessage:
 			log.Error("CONNECTION WAS CLOSED BY HUB")
@@ -258,20 +267,22 @@ func GetHashMac(id string, time string) string {
 }
 
 func GetTime() string {
-	time, err := time.Now().UTC().MarshalText()
-	var YYYYMMDDHH string
-	if err != nil {
-		log.Fatal(err)
-	}
-	stime := fmt.Sprintf("%s", time)
-	clear := []string{"-", ":", "T", "Z"}
-	for _, v := range clear {
-		stime = strings.Replace(stime, v, "", -1)
-	}
-	for i, v := range stime {
-		if i < 10 {
-			YYYYMMDDHH += string(v)
-		}
-	}
-	return YYYYMMDDHH
+	time := time.Now().UTC()
+	return fmt.Sprintf("%d%02d%02dT%02d%02d%02dZ", time.Year(), time.Month(), time.Day(), time.Hour(), time.Minute(), time.Second())
+	//time, err := time.Now().UTC().MarshalText()
+	//var YYYYMMDDHH string
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//stime := fmt.Sprintf("%s", time)
+	//clear := []string{"-", ":", "T", "Z"}
+	//for _, v := range clear {
+	//	stime = strings.Replace(stime, v, "", -1)
+	//}
+	//for i, v := range stime {
+	//	if i < 10 {
+	//		YYYYMMDDHH += string(v)
+	//	}
+	//}
+	//return YYYYMMDDHH
 }

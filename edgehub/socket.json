@@ -1,10 +1,11 @@
 {
- "url": "http://192.168.32.150:8081",
+ "edgeInfoServer": "http://192.168.32.150:8081",
  "postEdge": "/api/v2/edge/data/create",
  "socket": "43211",
  "putStatus": "/api/v2/edge/update/online",
  "getInfo": "/api/v2/edge/getInfo",
  "key": "3141592666",
  "postDevice": "/api/v1/iot/data/transfer",
- "websocketServer": "http://192.168.32.11:9000"
+ "deviceInfoServer": "http://192.168.32.11:9000",
+ "deviceControlServer": "ws://192.168.32.150:8082/api/v1/ws/easyfetch"
 }

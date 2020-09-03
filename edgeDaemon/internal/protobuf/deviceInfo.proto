@@ -1,7 +1,7 @@
-syntax="proto3";
+syntax = "proto3";
 package protobuf;
-option go_package="";
+option go_package = "";
 message deviceInfo{
-  string deviceId=1;
-  string Data=2;
+  string deviceId = 1;
+  string data = 2;
 }

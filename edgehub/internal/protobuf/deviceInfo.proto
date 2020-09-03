@@ -3,5 +3,5 @@ package protobuf;
 option go_package = "";
 message deviceInfo{
   string deviceId = 1;
-   string Data = 2;
+  string data = 2;
 }

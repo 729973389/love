@@ -9,6 +9,8 @@ import (
 
 const configFile = "server.json"
 
+var Config = GetConfig()
+
 type Server struct {
 	Url          string `json:"url"`
 	Token        string `json:"token"`

@@ -41,30 +41,44 @@ func Run(hub *Hub) {
 	client := mqtt.NewClient(ops)
 	c = &Client{Hub: hub, Client: client, Send: make(chan []byte, 1024), Map: make(map[string]bool)}
 	if token := c.Client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatal(errors.Wrap(token.Error(),"connect broker"))
+		log.Fatal(errors.Wrap(token.Error(), "connect broker"))
 	}
 	//test////////////////////////////////////////////////////////////////////////////
 	c.Client.Subscribe("easyfetch/device/properties/"+"lxd", 0, messageHandler)
 	//////////////////////////////////////////////////////////////////////////////////
 	go c.Receive()
-	go c.PublishCommand()
+	//go c.PublishCommand()
 }
 
 func (c *Client) Receive() {
 	for {
 		select {
-		case message := <-c.Hub.Down:
-			log.Println(string(message))
-			deviceId := FindDeviceId(message)
+		case b := <-c.Hub.Down:
+			s := string(b)
+			deviceId := FindKeyString(s, "deviceId")
 			if deviceId == "" {
 				continue
 			}
-			if _, ok := c.Map[deviceId]; ok {
-				log.Warning(errors.Wrap(fmt.Errorf(deviceId), "  already exit"))
-				continue
+			switch t := FindKeyString(s, "type"); t {
+			case "bind":
+				log.Info("bind")
+				if _, ok := c.Map[deviceId]; ok {
+					log.Warning(errors.Wrap(fmt.Errorf(deviceId), "already exit"))
+					continue
+				}
+				c.Map[deviceId] = true
+				c.Client.Subscribe("easyfetch/device/properties/"+deviceId, 0, messageHandler)
+			case "unbind":
+				log.Info("unbind")
+				if _, ok := c.Map[deviceId]; !ok {
+					log.Warning("No such deviceId")
+					continue
+				}
+				c.Client.Unsubscribe("easyfetch/devices/properties" + deviceId)
 			}
-			c.Map[deviceId] = true
-			c.Client.Subscribe("easyfetch/device/properties/"+deviceId, 0, messageHandler)
+
+
+
 		}
 	}
 }
@@ -74,11 +88,10 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, message mqtt.M
 	log.Println(string(message.Payload()))
 }
 
-func FindDeviceId(b []byte) string {
-	message := string(b)
-	ft1 := strings.Split(message, ",")
+func FindKeyString(s, k string) string {
+	ft1 := strings.Split(s, ",")
 	for _, v := range ft1 {
-		if strings.Contains(v, "\"deviceId\":") {
+		if strings.Contains(v, "\""+k+"\":") {
 			tokens := strings.Split(v, "\"")
 			for i2, v2 := range tokens {
 				if v2 == ":" {
@@ -87,7 +100,7 @@ func FindDeviceId(b []byte) string {
 			}
 		}
 	}
-	log.Error("MQTT can‘t find deviceId")
+	log.Error("MQTT can‘t find ", k)
 	return ""
 }
 
@@ -95,10 +108,13 @@ func (c *Client) PublishCommand() {
 	for {
 		select {
 		case command := <-c.Hub.Command:
-			deviceId := FindDeviceId(command)
-			if token := c.Client.Publish("easyfetch/device/command/"+deviceId, 1, false, command); token.Wait() && token.Error() != nil {
+			/////////////command
+			deviceId := FindKeyString(string(command), "co")
+			if token := c.Client.Publish("easyfetch/device/command"+deviceId, 1, false, command); token.Wait() && token.Error() != nil {
 				log.Warning(token.Error())
+				continue
 			}
+			c.Client.Subscribe("easyfetch/device/"+deviceId+"/command/response", 0, messageHandler)
 		}
 	}
 }

@@ -62,7 +62,7 @@ func Serve(hub *Hub) {
 }
 
 func (c *HttpClient) PostEdge(b []byte) {
-	var route = Info.Url + Info.PostEdge
+	var route = Info.EdgeInfoServer + Info.PostEdge
 	sysInfo := &protobuf.InterfaceEdge{}
 	if err := proto.Unmarshal(b, sysInfo); err != nil {
 		log.Error(err)
@@ -90,7 +90,7 @@ func (c *HttpClient) PostEdge(b []byte) {
 }
 
 func PutStatus(number string, status bool) {
-	var route = Info.Url + Info.PutStatus
+	var route = Info.EdgeInfoServer + Info.PutStatus
 	httpInfo := &protobuf.HttpOnline{
 		SerialNumber: number,
 		Online:       status,
@@ -116,7 +116,7 @@ func PutStatus(number string, status bool) {
 }
 
 func GEtInfo(t string, s string) bool {
-	var route = Info.Url + Info.GetInfo + "?" + fmt.Sprint("serialNumber=", s)
+	var route = Info.EdgeInfoServer + Info.GetInfo + "?" + fmt.Sprint("serialNumber=", s)
 	//log.Println(route) //test
 	var token string
 	resq, err := http.Get(route)
@@ -150,7 +150,7 @@ func GEtInfo(t string, s string) bool {
 }
 
 func PostDeviceInfo(message []byte) {
-	var route = Info.WebsocketServer + Info.PostDevice
+	var route = Info.DeviceInfoServer + Info.PostDevice
 	log.Info("PostDeviceInfo: ", string(message))
 	request, err := http.NewRequest("POST", route, strings.NewReader(string(message)))
 	if err != nil {

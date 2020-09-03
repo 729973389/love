@@ -16,6 +16,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup) {
 	hub := NewHub()
 	go hub.Run(ctx)
 	go Serve(hub)
+	go RunDWS(ctx, hub)
 	flag.Parse()
 	//Mux holds the map that server looks up from pattern to handler
 	router := http.NewServeMux()
@@ -24,7 +25,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup) {
 		Servews(ctx, hub, writer, request)
 	}))))
 	router.HandleFunc("/hub", func(w http.ResponseWriter, r *http.Request) { Servews(ctx, hub, w, r) })
-	server := http.Server{Addr: fmt.Sprintf(":%s", GetConfig().Socket), Handler: router}
+	server := http.Server{Addr: fmt.Sprintf(":%s", Info.Socket), Handler: router}
 	fmt.Println("listening", *addr)
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
