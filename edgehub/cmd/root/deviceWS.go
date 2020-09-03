@@ -119,8 +119,6 @@ func (dws *DWS) Read() {
 					return
 				}
 				if _, ok := dws.Map[deviceId]; !ok {
-					//test
-					log.Warning(serialNumber, deviceId)
 					err := dws.DeviceGister(serialNumber, deviceId, "bind")
 					if err == nil {
 						dws.Map[deviceId] = serialNumber
@@ -183,15 +181,14 @@ func FindKeyString(s string, key string) (string, error) {
 	line := strings.Split(s, ",")
 	for _, v := range line {
 		if strings.Contains(v, "\""+key+"\":") {
-			v = strings.Replace(v, "{", "\"", -1)
-			v = strings.Replace(v, "}", "\"", -1)
 			t := strings.Split(v, "\"")
 			for i, s := range t {
 				if strings.Contains(s, ":") {
-					return t[i+1], nil
+					if t[i-1] == key {
+						return t[i+1], nil
+					}
 				}
 			}
-
 		}
 	}
 	return "", errors.Wrap(fmt.Errorf("can't find %s", key), "findKeyString")

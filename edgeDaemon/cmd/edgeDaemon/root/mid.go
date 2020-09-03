@@ -94,8 +94,10 @@ func FindKeyString(s, k string) string {
 		if strings.Contains(v, "\""+k+"\":") {
 			tokens := strings.Split(v, "\"")
 			for i2, v2 := range tokens {
-				if v2 == ":" {
-					return tokens[i2+1]
+				if strings.Contains(v2, ":") {
+					if tokens[i2-1] == k {
+						return tokens[i2+1]
+					}
 				}
 			}
 		}
