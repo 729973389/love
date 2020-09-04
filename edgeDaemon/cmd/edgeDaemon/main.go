@@ -37,8 +37,8 @@ func main() {
 	}()
 	wg.Add(1)
 	hub := root.NewHub()
-	go root.Run(hub)
 	go root.RunTCP(ctx, &wg, hub)
+	go root.Run(hub)
 	wg.Wait()
 
 	cancel()

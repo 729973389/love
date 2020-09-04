@@ -69,8 +69,10 @@ func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Reque
 	log.Println("connecting:", r.RemoteAddr)
 	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 1024), PingPong: make(chan int), SerialNumber: number, Time: make(chan int)}
 	client.Hub.Register <- client
-	go client.readPump()
+	hookWrite := client.HookWrite()
+	go hookWrite()
 	go client.WritePump()
+	go client.readPump()
 	for {
 		select {
 		case <-ctx.Done():
@@ -80,6 +82,33 @@ func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
+}
+
+func (c *Client) HookWrite() func() {
+	return func() {
+		ok := c.SendDeviceMap()
+		log.Info("SendDeviceMap:", ok)
+		c.WritePump()
+	}
+}
+
+func (c *Client) SendDeviceMap() bool {
+	if len(c.Hub.deviceMap[c.SerialNumber]) == 0 {
+		log.Info("No device")
+		return false
+	}
+	deviceMap := &protobuf.DeviceMap{DeviceId: c.Hub.deviceMap[c.SerialNumber]}
+	message := &protobuf.Message{Switch: &protobuf.Message_DeviceMap{DeviceMap: deviceMap}}
+	b, err := proto.Marshal(message)
+	if err != nil {
+		log.Error(errors.Wrap(err, "sendDeviceMap"))
+		return false
+	}
+	if err := c.Conn.WriteMessage(websocket.BinaryMessage, b); err != nil {
+		log.Error(errors.Wrap(err, "sendDeviceMap"))
+		return false
+	}
+	return true
 }
 
 //send all message from this goroutine

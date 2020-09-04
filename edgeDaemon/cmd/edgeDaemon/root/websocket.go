@@ -219,8 +219,14 @@ func (w *WS) Read() {
 				deviceGister := t.DeviceGister
 				switch deviceGister.Type {
 				case "bind":
-					w.Hub.Down <- []byte(deviceGister.String())
+					w.Hub.Down <- deviceGister
+				case "unbind":
+					w.Hub.Down <- deviceGister
+
 				}
+			case *protobuf.Message_DeviceMap:
+				deviceMap := t.DeviceMap
+				w.Hub.DeviceMap <- deviceMap.DeviceId
 
 			}
 		case websocket.CloseMessage:

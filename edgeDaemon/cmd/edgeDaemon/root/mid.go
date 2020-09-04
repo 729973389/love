@@ -44,7 +44,6 @@ func Run(hub *Hub) {
 		log.Fatal(errors.Wrap(token.Error(), "connect broker"))
 	}
 	//test////////////////////////////////////////////////////////////////////////////
-	c.Client.Subscribe("easyfetch/device/properties/"+"lxd", 0, messageHandler)
 	//////////////////////////////////////////////////////////////////////////////////
 	go c.Receive()
 	//go c.PublishCommand()
@@ -53,13 +52,20 @@ func Run(hub *Hub) {
 func (c *Client) Receive() {
 	for {
 		select {
-		case b := <-c.Hub.Down:
-			s := string(b)
-			deviceId := FindKeyString(s, "deviceId")
+		case deviceId := <-c.Hub.DeviceMap:
+			log.Info("register deviceId")
+			for _, v := range deviceId {
+				c.Map[v] = true
+				c.Client.Subscribe("easyfetch/device/properties/"+v, 0, messageHandler)
+			}
+
+		case deviceGister := <-c.Hub.Down:
+			log.Info("receive: ", deviceGister.String())
+			deviceId := deviceGister.DeviceId
 			if deviceId == "" {
 				continue
 			}
-			switch t := FindKeyString(s, "type"); t {
+			switch t := deviceGister.Type; t {
 			case "bind":
 				log.Info("bind")
 				if _, ok := c.Map[deviceId]; ok {
@@ -74,7 +80,8 @@ func (c *Client) Receive() {
 					log.Warning("No such deviceId")
 					continue
 				}
-				c.Client.Unsubscribe("easyfetch/devices/properties" + deviceId)
+				c.Client.Unsubscribe("easyfetch/device/properties/" + deviceId)
+				delete(c.Map, deviceId)
 			}
 
 

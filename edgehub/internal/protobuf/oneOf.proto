@@ -6,6 +6,7 @@ import "interfaceEdge.proto";
 import "deviceInfo.proto";
 import "deviceCommand.proto";
 import "deviceGister.proto";
+import "deviceMap.proto";
 message message{
   oneof switch{
     protobuf.author author = 1;
@@ -13,5 +14,6 @@ message message{
     protobuf.deviceInfo deviceInfo = 3;
     protobuf.deviceCommand deviceCommand = 4;
     protobuf.deviceGister deviceGister = 5;
+    protobuf.deviceMap deviceMap = 6;
   }
 }

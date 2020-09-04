@@ -8,6 +8,7 @@ import (
 //control all message that transformed by each instance
 type Hub struct {
 	Clients        map[string]*Client
+	deviceMap      map[string][]string
 	Register       chan *Client
 	UnRegister     chan *Client
 	Broadcast      chan []byte
@@ -26,6 +27,7 @@ func NewHub() *Hub {
 		HttpMessage:    make(chan []byte, 256),
 		HttpUnRegister: make(chan *Client),
 		HttpRegister:   make(chan *Client),
+		deviceMap:      make(map[string][]string),
 	}
 }
 
@@ -44,9 +46,10 @@ func (hub *Hub) Run(ctx context.Context) {
 		case client := <-hub.UnRegister:
 			if _, ok := hub.Clients[client.SerialNumber]; ok {
 				delete(hub.Clients, client.SerialNumber)
-				close(client.Send)
+				delete(hub.deviceMap, client.SerialNumber)
 				hub.HttpUnRegister <- client
 				log.Warning("unregister: ", client.Conn.RemoteAddr())
+				client.Conn.Close()
 			}
 		case <-ctx.Done():
 			close(hub.UnRegister)

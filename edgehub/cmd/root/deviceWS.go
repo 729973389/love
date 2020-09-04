@@ -105,12 +105,8 @@ func (dws *DWS) Read() {
 			if t == "connected" || t == "refused" {
 				continue
 			}
-			deviceId, err := FindKeyString(s, "deviceId")
-			if err != nil {
-				log.Warning(err)
-				continue
-			}
-			switch t {
+
+			switch deviceId, _ := FindKeyString(s, "deviceId"); t {
 			case bindDevice:
 				log.Info("bindDevice")
 				serialNumber, err := FindKeyString(s, "serialNumber")
@@ -122,6 +118,7 @@ func (dws *DWS) Read() {
 					err := dws.DeviceGister(serialNumber, deviceId, "bind")
 					if err == nil {
 						dws.Map[deviceId] = serialNumber
+						dws.Hub.deviceMap[serialNumber] = append(dws.Hub.deviceMap[serialNumber], deviceId)
 					}
 				} else {
 					log.Warning("deviceId already exists")
@@ -136,6 +133,12 @@ func (dws *DWS) Read() {
 				err := dws.DeviceGister(serialNumber, deviceId, "unbind")
 				if err == nil {
 					delete(dws.Map, deviceId)
+					for i, v := range dws.Hub.deviceMap[serialNumber] {
+						if v == deviceId {
+							copy(dws.Hub.deviceMap[serialNumber][i:], dws.Hub.deviceMap[serialNumber][i+1:])
+							dws.Hub.deviceMap[serialNumber] = dws.Hub.deviceMap[serialNumber][:len(dws.Hub.deviceMap[serialNumber])-1]
+						}
+					}
 				}
 			case deleteEdge:
 				log.Info("deleteEdge")
