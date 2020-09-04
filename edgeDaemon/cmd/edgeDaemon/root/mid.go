@@ -1,12 +1,14 @@
 package root
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"strings"
+	"sync"
 )
 
 type Client struct {
@@ -30,7 +32,8 @@ var c *Client
 //	return &Client{Client: &client}
 //}
 
-func Run(hub *Hub) {
+func RunMQTT(ctx context.Context, hub *Hub) {
+	defer log.Warning("EXIT RUNMQTT")
 	ops := mqtt.NewClientOptions().SetClientID("edgeDaemon").AddBroker("tcp://localhost:7883").
 		SetUsername("edgeDaemon").
 		SetPassword("12345678").
@@ -41,15 +44,28 @@ func Run(hub *Hub) {
 	client := mqtt.NewClient(ops)
 	c = &Client{Hub: hub, Client: client, Send: make(chan []byte, 1024), Map: make(map[string]bool)}
 	if token := c.Client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatal(errors.Wrap(token.Error(), "connect broker"))
+		log.Error(errors.Wrap(token.Error(), "connect broker"))
+		return
 	}
-	//test////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////
-	go c.Receive()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		c.Receive(ctx)
+	}()
 	//go c.PublishCommand()
+	select {
+	case <-ctx.Done():
+		break
+	}
+	wg.Wait()
 }
 
-func (c *Client) Receive() {
+func (c *Client) Receive(ctx context.Context) {
+	defer func() {
+		log.Warning("EXIT RECEIVE")
+		c.Client.Disconnect(200)
+	}()
 	for {
 		select {
 		case deviceId := <-c.Hub.DeviceMap:
@@ -83,9 +99,8 @@ func (c *Client) Receive() {
 				c.Client.Unsubscribe("easyfetch/device/properties/" + deviceId)
 				delete(c.Map, deviceId)
 			}
-
-
-
+		case <-ctx.Done():
+			return
 		}
 	}
 }
@@ -118,7 +133,7 @@ func (c *Client) PublishCommand() {
 		select {
 		case command := <-c.Hub.Command:
 			/////////////command
-			deviceId := FindKeyString(string(command), "co")
+			deviceId := FindKeyString(string(command), "deviceId")
 			if token := c.Client.Publish("easyfetch/device/command"+deviceId, 1, false, command); token.Wait() && token.Error() != nil {
 				log.Warning(token.Error())
 				continue

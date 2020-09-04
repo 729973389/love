@@ -16,6 +16,7 @@ var (
 )
 
 func main() {
+	log.Info("Version: ", Version)
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	Mysignal := make(chan os.Signal, 1)
@@ -24,24 +25,41 @@ func main() {
 		for {
 			select {
 			case s := <-Mysignal:
-				switch s {
-				case os.Interrupt:
-					cancel()
-				case os.Kill:
-					cancel()
+				go func() {
+					switch s {
+					case os.Interrupt:
+						log.Info("Interrupt")
+						cancel()
+					case os.Kill:
+						log.Info("Kill")
+						cancel()
+					default:
+						cancel()
+					}
+				}()
+			case <-ctx.Done():
+				ticker := time.NewTicker(10 * time.Second)
+				select {
+				case <-ticker.C:
+					log.Warning("EXIT : MAIN : ABNORMAL")
+					os.Exit(1)
 				}
-
 			}
 
 		}
 	}()
-	wg.Add(1)
 	hub := root.NewHub()
-	go root.RunTCP(ctx, &wg, hub)
-	go root.Run(hub)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		root.RunWS(ctx, hub)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		root.RunMQTT(ctx, hub)
+	}()
 	wg.Wait()
-
 	cancel()
-	time.Sleep(10 * time.Second)
-	log.Println("MAIN: EXIT")
+	log.Println("MAIN : EXIT: NORMAL")
 }

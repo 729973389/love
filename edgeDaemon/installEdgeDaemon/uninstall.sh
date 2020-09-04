@@ -4,8 +4,12 @@ edgeDaemonWorkplace="/opt/easyfetch/edgeDaemon"
 if [ -e "/tmp/installEdgeDaemon*" ]; then
   rm /tmp/installEdgeDaemon* || echo "WARNING: REMOVE .TAR.GZ ERROR" || flag=0
 fi
+if [ -e "/tmp/installEdgeDaemon.*" ]; then
+  rm "/tmp/installEdgeDaemon.*" || echo "WARNING: REMOVE .TAR.GZ ERROR" || flag=0
+fi
 if [ -d "/tmp/installEdgeDaemon" ]; then
   rm -rf /tmp/installEdgeDaemon || echo "WARNING: REMOVE INSTALL FILE ERROR" || flag=0
+
 fi
 if [ -e "/etc/systemd/system/edgeDaemon.service" ]; then
   systemctl stop edgeDaemon.service
