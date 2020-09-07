@@ -47,6 +47,7 @@ func (hub *Hub) Run(ctx context.Context) {
 		select {
 		case client := <-hub.Register:
 			if i, ok := hub.Clients[client.SerialNumber]; ok {
+				log.Warning("close last client")
 				i.Conn.Close()
 				delete(hub.Clients, i.SerialNumber)
 			}

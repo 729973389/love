@@ -33,8 +33,6 @@ func main() {
 					case os.Kill:
 						log.Info("Kill")
 						cancel()
-					default:
-						cancel()
 					}
 				}()
 			case <-ctx.Done():

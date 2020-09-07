@@ -31,8 +31,9 @@ var (
 )
 
 const writeTime = 10 * time.Second
-const pongTime = 120 * time.Second
+const pongTime = 1 * time.Second
 const pingTime = (9 * pongTime) / 10
+const scheduleTime = 2 * time.Second
 const ping = 15
 
 var dialer = websocket.Dialer{}
@@ -148,25 +149,6 @@ func (w *WS) Read() {
 		w.signalCh <- "read"
 		w.Conn.Close()
 	}()
-	if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-		log.Println("set read deadline: ", err)
-	}
-	w.Conn.SetPingHandler(func(appData string) error {
-		log.Println("receive ping")
-		if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-			log.Println("set read deadline: ", err)
-		}
-		w.PingPong <- websocket.PingMessage
-		return nil
-	})
-	w.Conn.SetPongHandler(func(appData string) error {
-		if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-			log.Warning(err)
-		}
-		log.Println("receive pong")
-
-		return nil
-	})
 	for {
 		mt, message, err := w.Conn.ReadMessage()
 		if err != nil {
@@ -203,14 +185,13 @@ func (w *WS) Read() {
 }
 
 func (w *WS) LoopInfo() {
-	go func() {
-		for {
-			w.PingPong <- ping
-			time.Sleep(pingTime)
-		}
-
+	timer := time.NewTimer(pingTime)
+	defer func() {
+		timer.Stop()
+		log.Warning("EXIT LOOP")
 	}()
 	for {
+
 		systemInfo := protobuf.GetSystemInfo()
 		edgeInfo := &protobuf.EdgeInfo{
 			SerialNumber: w.SerialNumber,
@@ -222,7 +203,7 @@ func (w *WS) LoopInfo() {
 			log.Error("marshal: ", err)
 		}
 		w.Send <- b
-		time.Sleep(30 * time.Minute)
+		time.Sleep(writeTime)
 	}
 
 }

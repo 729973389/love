@@ -12,7 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
 	http "net/http"
-	"sync"
 	"time"
 )
 
@@ -31,7 +30,6 @@ type Client struct {
 	Hub          *Hub
 	Send         chan []byte
 	Conn         *websocket.Conn
-	PingPong     chan int
 	SerialNumber string
 	SendText     chan []byte
 }
@@ -52,32 +50,33 @@ func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Reque
 		return
 	}
 	defer conn.Close()
-	var checkCH = make(chan *struct{})
-	timer := time.NewTimer(10 * time.Second)
-	defer timer.Stop()
-	serialNumber := ""
-	go func() {
-		serialNumber, err = Check(conn)
-		checkCH <- &struct{}{}
-	}()
-	select {
-	case <-timer.C:
-		log.Error("check: timeout")
-		return
-	case <-checkCH:
-		break
-	}
-	if err != nil {
-		log.Error(errors.Wrap(err, "servews"))
-		return
-	}
-	timer.Stop()
-	close(checkCH)
-	if serialNumber == "" {
-		return
-	}
+	//
+	//var checkCH = make(chan *struct{})
+	//timer := time.NewTimer(10 * time.Second)
+	//defer timer.Stop()
+	//serialNumber := ""
+	//go func() {
+	//	serialNumber, err = Check(conn)
+	//	checkCH <- &struct{}{}
+	//}()
+	//select {
+	//case <-timer.C:
+	//	log.Error("check: timeout")
+	//	return
+	//case <-checkCH:
+	//	break
+	//}
+	//if err != nil {
+	//	log.Error(errors.Wrap(err, "servews"))
+	//	return
+	//}
+	//timer.Stop()
+	//close(checkCH)
+	//if serialNumber == "" {
+	//	return
+	//}
 	log.Println("connecting: ", r.RemoteAddr)
-	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 1024), PingPong: make(chan int), SerialNumber: serialNumber, SendText: make(chan []byte, 256)}
+	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 1024), SerialNumber: "serialNumber", SendText: make(chan []byte, 256)}
 	client.Hub.Register <- client
 	defer func() {
 		client.Hub.UnRegister <- client
@@ -142,28 +141,13 @@ func (c *Client) WritePump(ctx context.Context) {
 	}()
 	for {
 		select {
-		case mt := <-c.PingPong:
-			switch mt {
-			case websocket.PingMessage:
-				//err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
-				//if err != nil {
-				//	log.Warning("set write deadline: ", err)
-				//}
-				//err = c.Conn.WriteMessage(websocket.PongMessage, nil)
-				//if err != nil {
-				//	log.Warning(err)
-				//}
-				//log.Println("pong: ", c.Conn.RemoteAddr())
-				timer.Reset(pingPeriod)
-			case websocket.PongMessage:
-				timer.Reset(pingPeriod)
-			}
 		case <-c.SendText:
 			err := c.Conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 			if err != nil {
 				log.Error(errors.Wrap(err, "writePump"))
 				return
 			}
+			timer.Reset(pingPeriod)
 		case message := <-c.Send:
 			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
 			if err != nil {
@@ -215,10 +199,11 @@ func (c *Client) readPump(ctx context.Context) {
 			case <-timer.C:
 				log.Error("Time out")
 				return
-				timer.Reset(pongWait)
 			case <-ctx.Done():
 				log.Warning("read: context: ", ctx.Err())
 				return
+			case <-timeCH:
+				timer.Reset(pongWait)
 			}
 		}
 	}()
@@ -226,6 +211,9 @@ func (c *Client) readPump(ctx context.Context) {
 	log.Info("reading inner")
 	for {
 		mt, message, err := c.Conn.ReadMessage()
+		//test
+		log.Info("read: ", string(message))
+		//
 		{
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -245,7 +233,9 @@ func (c *Client) readPump(ctx context.Context) {
 				switch messageType := messageInfo.Switch.(type) {
 				case *protobuf.Message_Author:
 					log.Error("Author massage is not allowed")
-					return
+					//test
+					continue
+					//return
 				case *protobuf.Message_EdgeInfo:
 					edgeInfo := messageType.EdgeInfo
 					b, err := proto.Marshal(edgeInfo)
@@ -254,15 +244,18 @@ func (c *Client) readPump(ctx context.Context) {
 						continue
 					}
 					//test
-					log.Info("read: ", string(b))
+					fmt.Println("read: ", string(b))
 					c.Send <- b
-					c.Hub.HttpMessage <- b
+					//test
+					//c.Hub.HttpMessage <- b
+					//
 					timeCH <- &struct{}{}
 				case *protobuf.Message_DeviceInfo:
 					deviceData := messageType.DeviceInfo.Data
 					PostDeviceInfo([]byte(deviceData))
 				}
 			case websocket.TextMessage:
+				fmt.Println("read: ping")
 				timeCH <- &struct{}{}
 				c.SendText <- message
 			}
@@ -298,7 +291,8 @@ func Check(conn *websocket.Conn) (s string, err error) {
 	}()
 	mt, message, err := conn.ReadMessage()
 	if err != nil {
-		return "", errors.Wrap(err, "check")
+		err = errors.Wrap(err, "check")
+		return
 	}
 	if mt != websocket.BinaryMessage {
 		return "", fmt.Errorf("check: wrong message type")
@@ -306,7 +300,8 @@ func Check(conn *websocket.Conn) (s string, err error) {
 	edgeBuf := &protobuf.Message{}
 	err = proto.Unmarshal(message, edgeBuf)
 	if err != nil {
-		return "", errors.Wrap(err, "check")
+		err = errors.Wrap(err, "check")
+		return
 	}
 	switch m := edgeBuf.Switch.(type) {
 	case *protobuf.Message_EdgeInfo:
@@ -323,29 +318,23 @@ func Check(conn *websocket.Conn) (s string, err error) {
 			return "", fmt.Errorf("check: token: failed: %v", conn.RemoteAddr())
 		}
 		log.Info("Check success:", conn.RemoteAddr())
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ch := make(chan error, 1)
-			defer close(ch)
-			ticker := time.NewTicker(10 * time.Second)
-			defer ticker.Stop()
-			select {
-			case <-ticker.C:
-				err = fmt.Errorf("httpRegister: timeout")
-				return
-			case ch <- PutStatus(author.SerialNumber, true):
-				if err = <-ch; err != nil {
-					err = errors.Wrap(err, "putStatus")
-					return
-				}
-				checkOK = true
+		ch := make(chan error, 1)
+		defer close(ch)
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		select {
+		case <-ticker.C:
+			err = fmt.Errorf("httpRegister: timeout")
+			return "", err
+		case ch <- PutStatus(author.SerialNumber, true):
+			if err = <-ch; err != nil {
+				err = errors.Wrap(err, "putStatus")
 				return
 			}
-		}()
-		wg.Wait()
-		return author.SerialNumber, err
+			checkOK = true
+			return author.SerialNumber, err
+		}
+
 	}
-	return
+	return "", fmt.Errorf("check: unexpected err")
 }

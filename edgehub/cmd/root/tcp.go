@@ -16,22 +16,6 @@ var addr = flag.String("port", ":43211", "http service address,e.g. :43211")
 func Run(ctx context.Context) {
 	defer log.Warning("EXIT: RUN")
 	hub := NewHub()
-	flag.Parse()
-	//Mux holds the map that server looks up from pattern to handler
-	router := http.NewServeMux()
-	//hook the handler,do something before or after it.
-	router.Handle("/edgeHub", Middleware(http.Handler(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		Servews(ctx, hub, writer, request)
-	}))))
-	server := http.Server{Addr: fmt.Sprintf(":%s", Info.Socket), Handler: router}
-	defer server.Close()
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			log.Error("server: ", err)
-		} else {
-			log.Info("main", "http.server exit normally")
-		}
-	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -47,6 +31,22 @@ func Run(ctx context.Context) {
 	go func() {
 		defer wg.Done()
 		RunDWS(ctx, hub)
+	}()
+	flag.Parse()
+	//Mux holds the map that server looks up from pattern to handler
+	router := http.NewServeMux()
+	//hook the handler,do something before or after it.
+	router.Handle("/edgeHub", Middleware(http.Handler(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		Servews(ctx, hub, writer, request)
+	}))))
+	server := http.Server{Addr: fmt.Sprintf(":%s", Info.Socket), Handler: router}
+	defer server.Close()
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			log.Error("server: ", err)
+		} else {
+			log.Info("main", "http.server exit normally")
+		}
 	}()
 	wg.Wait()
 }
