@@ -32,20 +32,32 @@ func main() {
 		for {
 			select {
 			case s := <-Mysignal:
-				switch s {
-				case os.Kill:
-					cancel()
-				case os.Interrupt:
-					cancel()
+				go func() {
+					switch s {
+					case os.Kill:
+						log.Info("KILL")
+						cancel()
+					case os.Interrupt:
+						log.Info("INTERRUPT")
+						cancel()
+					}
+				}()
+			case <-ctx.Done():
+				ticker := time.NewTicker(10 * time.Second)
+				select {
+				case <-ticker.C:
+					log.Error("EXIT: MAIN: ABNORMAL")
+					os.Exit(1)
 				}
 			}
 		}
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go root.Run(ctx, &wg)
+	go func() {
+		defer wg.Done()
+		root.Run(ctx)
+	}()
 	wg.Wait()
-	cancel()
-	time.Sleep(CloseTime * time.Second)
-	log.Warning("Exit main")
+	log.Info("EXIT: MAIN: NORMAL")
 }

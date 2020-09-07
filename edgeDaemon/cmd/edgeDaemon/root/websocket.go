@@ -31,10 +31,11 @@ var (
 	Build   = "N/A"
 )
 
-const writeTime = 10 * time.Second
-const pongTime = 120 * time.Second
+const writeTime = 2 * time.Second
+const pongTime = 10 * time.Second
 const pingTime = (9 * pongTime) / 10
 const ping = 15
+const loopInformation = 5 * time.Second
 
 var dialer = websocket.Dialer{}
 
@@ -131,20 +132,20 @@ func (w *WS) Write(ctx context.Context) {
 			log.Info(pwd + " : deviceInfo : success")
 		case mt := <-w.PingPong:
 			switch mt {
-			case websocket.PingMessage:
-				if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
-					log.Error("write : setWriteDeadline : ", err)
-				}
-				if err := w.Conn.WriteMessage(websocket.PongMessage, nil); err != nil {
-					log.Error(errors.Wrap(err, "write : pongMessage"))
-					return
-				}
-				log.Println("write : pong : success")
+			//case websocket.PingMessage:
+			//	if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
+			//		log.Error("write : setWriteDeadline : ", err)
+			//	}
+			//	if err := w.Conn.WriteMessage(websocket.PongMessage, nil); err != nil {
+			//		log.Error(errors.Wrap(err, "write : pongMessage"))
+			//		return
+			//	}
+			//	log.Println("write : pong : success")
 			case ping:
 				if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
 					log.Error("write : setWriteDeadline : ", err)
 				}
-				if err := w.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				if err := w.Conn.WriteMessage(websocket.TextMessage, []byte("ping")); err != nil {
 					log.Error("ping : ", err)
 					return
 				}
@@ -190,28 +191,29 @@ func (w *WS) Read() {
 		w.Conn.Close()
 		log.Warning("EXIT : READ")
 	}()
-	w.Conn.SetPingHandler(func(appData string) error {
-		log.Println("receive ping")
-		//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-		//	log.Println("set read deadline: ", err)
-		//}
-		w.PingPong <- websocket.PingMessage
-		return nil
-	})
-	w.Conn.SetPongHandler(func(appData string) error {
-		//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-		//	log.Warning(err)
-		//}
-		log.Println("receive pong")
-		return nil
-	})
+	//w.Conn.SetPingHandler(func(appData string) error {
+	//	log.Println("receive ping")
+	//	//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
+	//	//	log.Println("set read deadline: ", err)
+	//	//}
+	//	w.PingPong <- websocket.PingMessage
+	//	return nil
+	//})
+	//w.Conn.SetPongHandler(func(appData string) error {
+	//	//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
+	//	//	log.Warning(err)
+	//	//}
+	//	log.Println("receive pong")
+	//	return nil
+	//})
 	for {
 		mt, message, err := w.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseTLSHandshake) {
 				log.Println("read : message : ", err)
 			}
-			break
+			log.Error("read: ", err)
+			return
 		}
 		switch mt {
 		case websocket.BinaryMessage:
@@ -222,6 +224,7 @@ func (w *WS) Read() {
 			}
 			switch t := messageInfo.Switch.(type) {
 			case *protobuf.Message_Author:
+				log.Error("read: wrong protobuf")
 				break
 			case *protobuf.Message_EdgeInfo:
 				edgeInfo := t.EdgeInfo
@@ -244,6 +247,8 @@ func (w *WS) Read() {
 				w.Hub.DeviceMap <- deviceMap.DeviceId
 
 			}
+		case websocket.TextMessage:
+			continue
 		case websocket.CloseMessage:
 			log.Warning("CONNECTION WAS CLOSED BY HUB")
 			return
@@ -254,9 +259,22 @@ func (w *WS) Read() {
 //send schedule information e.g. systemInfo&ping
 func (w *WS) LoopInfo(ctx context.Context) {
 	defer log.Warning("EXIT : LOOPINFO")
-	timer1 := time.NewTimer(30 * time.Minute)
-	timer2 := time.NewTimer(pingTime)
+	timer1 := time.NewTimer(loopInformation)
 	defer timer1.Stop()
+	systemInfo := protobuf.GetSystemInfo()
+	edgeInfo := &protobuf.EdgeInfo{
+		SerialNumber: w.SerialNumber,
+		Data:         &systemInfo,
+	}
+	message := &protobuf.Message{Switch: &protobuf.Message_EdgeInfo{EdgeInfo: edgeInfo}}
+	b, err := proto.Marshal(message)
+	if err != nil {
+		log.Error(errors.Wrap(err, "marshal proto"))
+		return
+	}
+	w.Send <- b
+	timer2 := time.NewTimer(pingTime)
+	defer timer2.Stop()
 	for {
 		select {
 		case <-timer1.C:
@@ -272,11 +290,12 @@ func (w *WS) LoopInfo(ctx context.Context) {
 				continue
 			}
 			w.Send <- b
-			timer1.Reset(30 * time.Minute)
+			timer1.Reset(loopInformation)
 		case <-ctx.Done():
 			return
 		case <-timer2.C:
 			w.PingPong <- ping
+			timer2.Reset(pingTime)
 		}
 	}
 }

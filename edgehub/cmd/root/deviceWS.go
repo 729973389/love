@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
-	"strings"
 	"sync"
 	"time"
 )
@@ -28,7 +27,9 @@ const DWSTime = 15 * time.Second
 
 var dialer = websocket.Dialer{}
 
+//run device websocket that set the device websocket client and hold the read&write&loopSchedule
 func RunDWS(ctx context.Context, hub *Hub) {
+	defer log.Warning("EXIT RUNDWS")
 	ctxChild, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var wg sync.WaitGroup
@@ -46,19 +47,30 @@ func RunDWS(ctx context.Context, hub *Hub) {
 	dws := &DWS{Hub: hub, Conn: c, Send: make(chan []byte, 1024), Map: make(map[string]string)}
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			wg.Done()
+			cancel()
+		}()
 		dws.Read()
 	}()
-	go dws.Write(ctxChild)
-	go dws.Loop(ctxChild)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		dws.Write(ctxChild)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		dws.Loop(ctxChild)
+	}()
 	wg.Wait()
-	cancel()
 
 }
 
+//Write is responsible for write message to websocket client
 func (dws *DWS) Write(ctx context.Context) {
 	defer func() {
-		log.Warning("EXIT dws write")
+		log.Warning("EXIT DWS WRITE")
 		dws.Conn.Close()
 	}()
 	for {
@@ -69,9 +81,9 @@ func (dws *DWS) Write(ctx context.Context) {
 			}
 			if err := dws.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				log.Error(errors.Wrap(err, "dws write"))
-				return
+				continue
 			}
-			log.Info("send", string(message))
+			log.Info("send: ", string(message))
 		case <-ctx.Done():
 			return
 		}
@@ -79,8 +91,9 @@ func (dws *DWS) Write(ctx context.Context) {
 	}
 }
 
+//Read is responsible for reading from remote websocket server,and when read have a mistake,it will return to finish reading,and make all the websocket function stopped.
 func (dws *DWS) Read() {
-	defer log.Warning("EXIT dws read")
+	defer log.Warning("EXIT: DWS READ")
 	defer dws.Conn.Close()
 	for {
 		//if err := dws.Conn.SetReadDeadline(time.Now().Add(DWSTime)); err != nil {
@@ -101,50 +114,68 @@ func (dws *DWS) Read() {
 			if s == "ping" || s == "pong" {
 				continue
 			}
-			t, _ := FindKeyString(s, "type")
+			t, err := FindKeyString(s, "type")
+			if err != nil {
+				log.Error(errors.Wrap(err, "dws read"))
+				continue
+			}
 			if t == "connected" || t == "refused" {
 				continue
 			}
 
-			switch deviceId, _ := FindKeyString(s, "deviceId"); t {
+			switch deviceId, err := FindKeyString(s, "deviceId"); t {
 			case bindDevice:
-				log.Info("bindDevice")
+				if err != nil {
+					log.Error(errors.Wrap(err, "dws read: bindDevice"))
+					continue
+				}
 				serialNumber, err := FindKeyString(s, "serialNumber")
 				if err != nil {
 					log.Error(err)
-					return
+					continue
 				}
 				if _, ok := dws.Map[deviceId]; !ok {
 					err := dws.DeviceGister(serialNumber, deviceId, "bind")
-					if err == nil {
-						dws.Map[deviceId] = serialNumber
-						dws.Hub.deviceMap[serialNumber] = append(dws.Hub.deviceMap[serialNumber], deviceId)
+					if err != nil {
+						log.Error(errors.Wrap(err, "dws read: bindDevice"))
+						continue
 					}
-				} else {
-					log.Warning("deviceId already exists")
+					dws.Map[deviceId] = serialNumber
+					dws.Hub.DeviceMap[serialNumber] = append(dws.Hub.DeviceMap[serialNumber], deviceId)
+					log.Info("bindDevice: ", "ok")
+					continue
 				}
+				log.Warning(fmt.Sprintf("%s already exits", deviceId))
 			case unbindDevice:
-				log.Info("unbindDevice")
+				if err != nil {
+					log.Error(errors.Wrap(err, "dws read: unbindDevice"))
+					continue
+				}
 				serialNumber, ok := dws.Map[deviceId]
 				if !ok {
 					log.Error(fmt.Errorf("no such deviceId to %s", serialNumber))
 					continue
 				}
 				err := dws.DeviceGister(serialNumber, deviceId, "unbind")
-				if err == nil {
-					delete(dws.Map, deviceId)
-					for i, v := range dws.Hub.deviceMap[serialNumber] {
-						if v == deviceId {
-							copy(dws.Hub.deviceMap[serialNumber][i:], dws.Hub.deviceMap[serialNumber][i+1:])
-							dws.Hub.deviceMap[serialNumber] = dws.Hub.deviceMap[serialNumber][:len(dws.Hub.deviceMap[serialNumber])-1]
-						}
+				if err != nil {
+					log.Error(errors.Wrap(err, "dws read: unbind"))
+					continue
+				}
+				delete(dws.Map, deviceId)
+				for i, v := range dws.Hub.DeviceMap[serialNumber] {
+					if v == deviceId {
+						copy(dws.Hub.DeviceMap[serialNumber][i:], dws.Hub.DeviceMap[serialNumber][i+1:])
+						dws.Hub.DeviceMap[serialNumber] = dws.Hub.DeviceMap[serialNumber][:len(dws.Hub.DeviceMap[serialNumber])-1]
+						log.Info("unbindDevice: ", "ok")
+						continue
 					}
 				}
+				log.Warning(fmt.Sprintf("dws read: deviceMap: %s has no %s", serialNumber, deviceId))
 			case deleteEdge:
-				log.Info("deleteEdge")
 				serialNumber, err := FindKeyString(s, "serialNumber")
 				if err != nil {
 					log.Error(errors.Wrap(err, "deleteEdge"))
+					continue
 				}
 				c, ok := dws.Hub.Clients[serialNumber]
 				if !ok {
@@ -152,9 +183,9 @@ func (dws *DWS) Read() {
 					continue
 				}
 				dws.Hub.UnRegister <- c
+				log.Info("deleteEdge: ok")
 			default:
 				log.Warning("No correct information")
-
 			}
 
 		}
@@ -162,56 +193,39 @@ func (dws *DWS) Read() {
 	}
 }
 
+/*DeviceGister is *DWS function that use specified parameter-list(serialNumber,deviceId,type string) to send the oneof
+Message_DeviceGister to edgeDaemon websocket client*/
 func (dws *DWS) DeviceGister(s, d, t string) error {
 	if c, ok := dws.Hub.Clients[s]; ok {
 		deviceGister := &protobuf.DeviceGister{Type: t, DeviceId: d}
 		message := &protobuf.Message{Switch: &protobuf.Message_DeviceGister{DeviceGister: deviceGister}}
 		b, err := proto.Marshal(message)
 		if err != nil {
-			log.Error(errors.Wrap(err, t))
-			return errors.Wrap(err, t)
+			return errors.Wrap(err, "deviceGister")
 		}
 		c.Send <- b
 	} else {
-		log.Info(dws.Hub.Clients)
-		log.Error("no such edge")
-		return fmt.Errorf("no such edge")
+		return fmt.Errorf(fmt.Sprintf("deviceGister: no such edge %s", s))
 	}
 	return nil
 }
 
-func FindKeyString(s string, key string) (string, error) {
-	line := strings.Split(s, ",")
-	for _, v := range line {
-		if strings.Contains(v, "\""+key+"\":") {
-			t := strings.Split(v, "\"")
-			for i, s := range t {
-				if strings.Contains(s, ":") {
-					if t[i-1] == key {
-						return t[i+1], nil
-					}
-				}
-			}
+//Loop is responsible for the schedule that is made ,such as ping remote websocket client
+func (dws *DWS) Loop(ctx context.Context) {
+	timer := time.NewTimer((DWSTime * 9) / 10)
+	defer func() {
+		timer.Stop()
+		log.Info("EXIT DWS LOOP")
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			dws.Send <- []byte("ping")
+			timer.Reset((DWSTime * 9) / 10)
+
 		}
 	}
-	return "", errors.Wrap(fmt.Errorf("can't find %s", key), "findKeyString")
-
-}
-
-func (dws *DWS) Loop(ctx context.Context) {
-	defer func() {
-		log.Info("EXIT DWS Loop")
-	}()
-	go func() {
-		for {
-			select {
-			case dws.Send <- []byte("ping"):
-				time.Sleep((DWSTime * 9) / 10)
-			case <-ctx.Done():
-				return
-			}
-		}
-
-	}()
 
 }
