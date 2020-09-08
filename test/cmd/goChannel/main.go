@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	ChannelRace()         //********
+	ChannelRace()         //*************  or ---------------
 	TimerChannel()        //time out
 	CloseReadChannel()    //read
 	CloseWriteChannel()   //panic: send on closed channel
@@ -15,8 +15,8 @@ func main() {
 
 }
 
-//race between ch <- GetInt() and <-timer.C.The result shows that the ch <- GetInt() always win,so the func directly send
-//to channel will always get the chance to run.
+//race between ch <- GetInt() and <-timer.C.The result shows that the ch <- GetInt() is not valid ,th select
+//occasionally chose one of them.
 func ChannelRace() {
 	var ch = make(chan int, 1)
 	timer := time.NewTimer(1 * time.Second)
