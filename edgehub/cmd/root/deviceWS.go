@@ -161,14 +161,19 @@ func (dws *DWS) Read() {
 					log.Error(errors.Wrap(err, "dws read: unbind"))
 					continue
 				}
+				breakFlag := 0
 				delete(dws.Map, deviceId)
 				for i, v := range dws.Hub.DeviceMap[serialNumber] {
 					if v == deviceId {
 						copy(dws.Hub.DeviceMap[serialNumber][i:], dws.Hub.DeviceMap[serialNumber][i+1:])
 						dws.Hub.DeviceMap[serialNumber] = dws.Hub.DeviceMap[serialNumber][:len(dws.Hub.DeviceMap[serialNumber])-1]
 						log.Info("unbindDevice: ", "ok")
-						continue
+						breakFlag = 1
+						break
 					}
+				}
+				if breakFlag == 1 {
+					continue
 				}
 				log.Warning(fmt.Sprintf("dws read: deviceMap: %s has no %s", serialNumber, deviceId))
 			case deleteEdge:

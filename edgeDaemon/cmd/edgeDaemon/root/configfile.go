@@ -3,7 +3,7 @@ package root
 import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
-	config "github.com/wuff1996/edgeDaemon/config"
+	"github.com/wuff1996/edgeDaemon/config"
 	"io/ioutil"
 )
 

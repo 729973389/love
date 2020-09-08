@@ -1,11 +1,11 @@
 #!/sbin/sh
 flag=1
 edgeDaemonWorkplace="/opt/easyfetch/edgeDaemon"
-if [ -e "/tmp/installEdgeDaemon*" ]; then
+if [ -e "/tmp/installEdgeDaemon.tar.gz" ]; then
   rm /tmp/installEdgeDaemon* || echo "WARNING: REMOVE .TAR.GZ ERROR" || flag=0
 fi
-if [ -e "/tmp/installEdgeDaemon.*" ]; then
-  rm "/tmp/installEdgeDaemon.*" || echo "WARNING: REMOVE .TAR.GZ ERROR" || flag=0
+if [ -e "/tmp/installEdgeDaemon.tar.gz*" ]; then
+  rm "/tmp/installEdgeDaemon.tar.gz*" || echo "WARNING: REMOVE .TAR.GZ ERROR" || flag=0
 fi
 if [ -d "/tmp/installEdgeDaemon" ]; then
   rm -rf /tmp/installEdgeDaemon || echo "WARNING: REMOVE INSTALL FILE ERROR" || flag=0

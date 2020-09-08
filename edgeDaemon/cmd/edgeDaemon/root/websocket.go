@@ -31,24 +31,37 @@ var (
 )
 
 const writeTime = 10 * time.Second
-const pongTime = 2 * time.Second
+const pongTime = 13 * time.Second
 const pingTime = (9 * pongTime) / 10
 const ping = 15
-const loopInformation = 1 * time.Second
+const loopInformation = 30 * time.Minute
 
-var dialer = websocket.Dialer{}
+var dialer = websocket.Dialer{
+	HandshakeTimeout: writeTime,
+}
 
 func RunWS(ctx context.Context, hub *Hub) {
+	ctxchild, cancel := context.WithCancel(ctx)
+	defer cancel()
 	pwd := "runWS"
 	defer log.Warning("EXIT RUNWS")
 	url := Config.Url
 	id := Config.SerialNumber
 	token := Config.Token
-	c, _, err := dialer.Dial("ws://"+url, nil)
+	c, resp, err := dialer.Dial("ws://"+url, nil)
 	if err != nil {
 		log.Error(errors.Wrap(err, pwd))
 		return
 	}
+	defer c.Close()
+	defer resp.Body.Close()
+	respByte := make([]byte, 512)
+	resp.Body.Read(respByte)
+	fmt.Println("resp: ", string(respByte))
+	c.SetCloseHandler(func(code int, text string) error {
+		log.Error(text+": ", code)
+		return err
+	})
 	time := GetTime()
 	message := protobuf.SetOneOfAuthor(id, token, time, GetHashMac(id, time))
 	b, err := proto.Marshal(message)
@@ -65,40 +78,42 @@ func RunWS(ctx context.Context, hub *Hub) {
 		Hub:          hub,
 		Conn:         c,
 		Send:         make(chan []byte, 1024),
-		PingPong:     make(chan int, 5),
+		PingPong:     make(chan int, 32),
 		SerialNumber: id,
 		Token:        token,
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
+		defer cancel()
 		defer wg.Done()
 		ws.Read()
 	}()
 	wg.Add(1)
 	go func() {
+		defer cancel()
 		defer wg.Done()
-		ws.Write(ctx)
+		ws.Write(ctxchild)
 	}()
 	wg.Add(1)
 	go func() {
+		defer cancel()
 		defer wg.Done()
-		ws.LoopInfo(ctx)
+		ws.LoopInfo(ctxchild)
 	}()
-	select {
-	case <-ctx.Done():
-		log.Warning("closing run")
-		return
+	for {
+		select {
+		case <-ctx.Done():
+			log.Warning("closing run")
+			return
+		}
 	}
 	wg.Wait()
 }
 
 func (w *WS) Write(ctx context.Context) {
 	pwd := "write"
-	//timer := time.NewTimer(pongTime)
-	//var timerCount = 0
 	defer func() {
-		//timer.Stop()
 		w.Conn.Close()
 		log.Warning("EXIT : WRITE")
 	}()
@@ -113,33 +128,20 @@ func (w *WS) Write(ctx context.Context) {
 			bm, err := proto.Marshal(message)
 			if err != nil {
 				log.Error(errors.Wrap(err, "write : deviceInfo"))
-				return
+				continue
 			}
 			if err := w.Conn.WriteMessage(websocket.BinaryMessage, bm); err != nil {
 				log.Error(errors.Wrap(err, "write : deviceInfo"))
-				continue
+				return
 			}
 			log.Info(pwd + ": deviceInfo: success")
-		case mt := <-w.PingPong:
-			switch mt {
-			//case websocket.PingMessage:
-			//	if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
-			//		log.Error("write : setWriteDeadline : ", err)
-			//	}
-			//	if err := w.Conn.WriteMessage(websocket.PongMessage, nil); err != nil {
-			//		log.Error(errors.Wrap(err, "write : pongMessage"))
-			//		return
-			//	}
-			//	log.Println("write : pong : success")
-			case ping:
-				if err := w.Conn.WriteMessage(websocket.TextMessage, []byte("ping")); err != nil {
-					log.Error("ping : ", err)
-					return
-				}
-				log.Info(fmt.Sprintf("ping : %s : success", w.Conn.RemoteAddr()))
+		case <-w.PingPong:
+			p := []byte("ping")
+			if err := w.Conn.WriteMessage(websocket.TextMessage, p); err != nil {
+				log.Error("ping : ", err)
+				return
 			}
-			//timer.Reset(pongTime)
-			//timerCount = 0
+			log.Info(fmt.Sprintf("ping : %s : success", w.Conn.RemoteAddr()))
 		case message, ok := <-w.Send:
 			if !ok {
 				log.Error("write: channel closed")
@@ -147,25 +149,12 @@ func (w *WS) Write(ctx context.Context) {
 			}
 			err := w.Conn.WriteMessage(websocket.BinaryMessage, message)
 			if err != nil {
-				log.Println("write: message: ", err)
+				log.Error("write: message: ", err)
+				return
 			}
 			log.Println("write: message: success")
-			continue
 		case <-ctx.Done():
 			return
-
-			//	timer.Reset(pongTime)
-			//	timerCount = 0
-			//case <-timer.C:
-			//	if timerCount >= 4 {
-			//
-			//	}
-			//	if err := w.Conn.SetWriteDeadline(time.Now().Add(writeTime)); err != nil {
-			//		log.Println("set write deadline: ", err)
-			//	}
-			//	if err := w.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-			//		log.Println("ping: ", err)
-			//	}
 		}
 	}
 }
@@ -174,28 +163,21 @@ func (w *WS) Read() {
 
 	defer func() {
 		w.Conn.Close()
-		log.Warning("EXIT : READ")
+		log.Warning("EXIT: READ")
 	}()
-	//w.Conn.SetPingHandler(func(appData string) error {
-	//	log.Println("receive ping")
-	//	//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-	//	//	log.Println("set read deadline: ", err)
-	//	//}
-	//	w.PingPong <- websocket.PingMessage
-	//	return nil
-	//})
-	//w.Conn.SetPongHandler(func(appData string) error {
-	//	//if err := w.Conn.SetReadDeadline(time.Now().Add(pongTime)); err != nil {
-	//	//	log.Warning(err)
-	//	//}
-	//	log.Println("receive pong")
-	//	return nil
-	//})
+	w.Conn.SetPingHandler(func(appData string) error {
+		log.Info("pingHandler")
+		return nil
+	})
+	w.Conn.SetPongHandler(func(appData string) error {
+		log.Info("pongHandler")
+		return nil
+	})
 	for {
 		mt, message, err := w.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseTLSHandshake) {
-				log.Println("read: message: ", err)
+				log.Println("read: ", err)
 			}
 			log.Error("read: ", err)
 			return
@@ -211,14 +193,13 @@ func (w *WS) Read() {
 			switch t := messageInfo.Switch.(type) {
 			case *protobuf.Message_Author:
 				log.Error("read: wrong protobuf")
-				//test
 				continue
-				//return
 			case *protobuf.Message_EdgeInfo:
 				edgeInfo := t.EdgeInfo
 				b, err := json.Marshal(edgeInfo)
 				if err != nil {
-					log.WithError(err)
+					log.Error(errors.Wrap(err, "read: message_edgeInfo"))
+					return
 				}
 				fmt.Println(string(b))
 			case *protobuf.Message_DeviceGister:
@@ -228,7 +209,6 @@ func (w *WS) Read() {
 					w.Hub.Down <- deviceGister
 				case "unbind":
 					w.Hub.Down <- deviceGister
-
 				}
 			case *protobuf.Message_DeviceMap:
 				deviceMap := t.DeviceMap
@@ -238,22 +218,18 @@ func (w *WS) Read() {
 		case websocket.TextMessage:
 			fmt.Println(string(message))
 			continue
-		case websocket.CloseMessage:
-			log.Warning("CONNECTION WAS CLOSED BY HUB")
-			return
 		}
 	}
 }
 
 //send schedule information e.g. systemInfo&ping
+
 func (w *WS) LoopInfo(ctx context.Context) {
 	defer log.Warning("EXIT : LOOPINFO")
 	log.Info("schedule: start")
 	timer1 := time.NewTimer(loopInformation)
 	defer timer1.Stop()
-	//test
-	systemInfo := protobuf.SystemInfo{}
-	//systemInfo := protobuf.GetSystemInfo()
+	systemInfo := protobuf.GetSystemInfo()
 	edgeInfo := &protobuf.EdgeInfo{
 		SerialNumber: w.SerialNumber,
 		Data:         &systemInfo,
@@ -270,8 +246,7 @@ func (w *WS) LoopInfo(ctx context.Context) {
 	for {
 		select {
 		case <-timer1.C:
-			//test
-			//systemInfo := protobuf.GetSystemInfo()
+			systemInfo := protobuf.GetSystemInfo()
 			edgeInfo := &protobuf.EdgeInfo{
 				SerialNumber: w.SerialNumber,
 				Data:         &systemInfo,
@@ -293,7 +268,8 @@ func (w *WS) LoopInfo(ctx context.Context) {
 	}
 }
 
-func GetHashMac(id string, time string) string {
+func
+GetHashMac(id string, time string) string {
 	var key = "3141592666"
 	var b = []byte(key)
 	hash := hmac.New(sha256.New, b)
@@ -307,20 +283,4 @@ func GetHashMac(id string, time string) string {
 func GetTime() string {
 	time := time.Now().UTC()
 	return fmt.Sprintf("%d%02d%02dT%02d%02d%02dZ", time.Year(), time.Month(), time.Day(), time.Hour(), time.Minute(), time.Second())
-	//time, err := time.Now().UTC().MarshalText()
-	//var YYYYMMDDHH string
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//stime := fmt.Sprintf("%s", time)
-	//clear := []string{"-", ":", "T", "Z"}
-	//for _, v := range clear {
-	//	stime = strings.Replace(stime, v, "", -1)
-	//}
-	//for i, v := range stime {
-	//	if i < 10 {
-	//		YYYYMMDDHH += string(v)
-	//	}
-	//}
-	//return YYYYMMDDHH
 }

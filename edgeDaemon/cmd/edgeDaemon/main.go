@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -33,6 +34,19 @@ func main() {
 					case os.Kill:
 						log.Info("Kill")
 						cancel()
+					case syscall.SIGTERM:
+						log.Info("SIGTERM")
+						cancel()
+					case syscall.SIGHUP:
+						log.Info("SIGHUP")
+						cancel()
+					case syscall.SIGQUIT:
+						log.Info("SIGQUIT")
+						cancel()
+					case syscall.SIGABRT:
+						log.Info("ABRT")
+						cancel()
+
 					}
 				}()
 			case <-ctx.Done():
@@ -42,19 +56,26 @@ func main() {
 					log.Warning("EXIT : MAIN : ABNORMAL")
 					os.Exit(1)
 				}
-			}
 
+
+			}
 		}
 	}()
 	hub := root.NewHub()
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			cancel()
+			wg.Done()
+		}()
 		root.RunWS(ctx, hub)
 	}()
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			cancel()
+			wg.Done()
+		}()
 		root.RunMQTT(ctx, hub)
 	}()
 	wg.Wait()

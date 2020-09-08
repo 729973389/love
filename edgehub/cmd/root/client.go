@@ -35,6 +35,7 @@ type Client struct {
 }
 
 var UpGrader = websocket.Upgrader{
+	HandshakeTimeout: writeWaite,
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -51,35 +52,35 @@ func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Reque
 	}
 	defer conn.Close()
 	//
-	//var checkCH = make(chan *struct{})
-	//timer := time.NewTimer(10 * time.Second)
-	//defer timer.Stop()
-	//serialNumber := ""
-	//go func() {
-	//	serialNumber, err = Check(conn)
-	//	checkCH <- &struct{}{}
-	//}()
-	//select {
-	//case <-timer.C:
-	//	log.Error("check: timeout")
-	//	return
-	//case <-checkCH:
-	//	break
-	//}
-	//if err != nil {
-	//	log.Error(errors.Wrap(err, "servews"))
-	//	return
-	//}
-	//timer.Stop()
-	//close(checkCH)
-	//if serialNumber == "" {
-	//	return
-	//}
+	var checkCH = make(chan *struct{})
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	serialNumber := ""
+	go func() {
+		serialNumber, err = Check(conn)
+		checkCH <- &struct{}{}
+	}()
+	select {
+	case <-timer.C:
+		log.Error("check: timeout")
+		return
+	case <-checkCH:
+		break
+	}
+	if err != nil {
+		log.Error(errors.Wrap(err, "servews"))
+		return
+	}
+	timer.Stop()
+	close(checkCH)
+	if serialNumber == "" {
+		return
+	}
+	//
 	log.Println("connecting: ", r.RemoteAddr)
-	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 1024), SerialNumber: "serialNumber", SendText: make(chan []byte, 256)}
+	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 512), SerialNumber: serialNumber, SendText: make(chan []byte, 256)}
 	client.Hub.Register <- client
 	defer func() {
-		client.Hub.UnRegister <- client
 		client.Conn.Close()
 	}()
 	hookWrite := client.HookWrite(ctxChild)
@@ -89,18 +90,18 @@ func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Reque
 	}()
 	go func() {
 		defer cancel()
-		//test
-		log.Info("reading")
 		client.readPump(ctxChild)
 	}()
-	select {
-	case <-ctx.Done():
-		log.Warning("close: client: ", ctx.Err())
-		return
-	case <-ctxChild.Done():
-		log.Warning("close: client: ", ctxChild.Err())
-		return
+	for {
+		select {
+		case <-ctx.Done():
+			log.Warning("close: client: ", ctx.Err())
+			return
+		case <-ctxChild.Done():
+			log.Warning("close: client: ", ctxChild.Err())
+			return
 
+		}
 	}
 }
 
@@ -134,35 +135,28 @@ func (c *Client) SendDeviceMap() bool {
 
 //send all message from this goroutine
 func (c *Client) WritePump(ctx context.Context) {
-	timer := time.NewTimer(pingPeriod)
 	defer func() {
-		timer.Stop()
 		c.Conn.Close()
 	}()
 	for {
 		select {
 		case <-c.SendText:
-			err := c.Conn.WriteMessage(websocket.TextMessage, []byte("pong"))
+			m := []byte("pong")
+			err := c.Conn.WriteMessage(websocket.TextMessage, m)
 			if err != nil {
 				log.Error(errors.Wrap(err, "writePump"))
 				return
 			}
-			timer.Reset(pingPeriod)
+			log.Info("send pong")
+			continue
 		case message := <-c.Send:
-			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWaite))
-			if err != nil {
-				log.Warning("set write deadline: ", err)
-			}
-			err = c.Conn.WriteMessage(websocket.BinaryMessage, message)
+			err := c.Conn.WriteMessage(websocket.BinaryMessage, message)
 			if err != nil {
 				log.Error(errors.Wrap(err, "client writePump"))
 				return
 			}
 			log.Info(fmt.Sprintf("write remote client: %s: success", c.SerialNumber))
-			timer.Reset(pingPeriod)
-		case <-timer.C:
-			log.Warning("time out")
-			return
+			continue
 		case <-ctx.Done():
 			log.Info("writePump: ", ctx.Err())
 			return
@@ -172,28 +166,24 @@ func (c *Client) WritePump(ctx context.Context) {
 
 //read message from every single client
 func (c *Client) readPump(ctx context.Context) {
+	defer c.Conn.Close()
 	defer log.Warning("EXIT READPUMP")
 	timer := time.NewTimer(pongWait)
 	defer timer.Stop()
-	//var once sync.Once
-	//unregister client and close the websocket connection
 	defer func() {
 		log.Warning("closing read: ", c.Conn.RemoteAddr())
 		c.Conn.Close()
 	}()
-	//c.Conn.SetPingHandler(func(appData string) error {
-	//	c.Time <- 1
-	//	c.PingPong <- websocket.PingMessage
-	//	return nil
-	//})
-	//c.Conn.SetPongHandler(func(appData string) error {
-	//	log.Println("receive pong: ", appData)
-	//	c.PingPong <- websocket.PongMessage
-	//	return nil
-	//})
+	c.Conn.SetPongHandler(func(appData string) error {
+		log.Info("pongHandler")
+		return nil
+	})
+	c.Conn.SetPingHandler(func(appData string) error {
+		log.Info("pingHandler")
+		return nil
+	})
 	var timeCH = make(chan *struct{})
 	go func() {
-		defer c.Conn.Close()
 		for {
 			select {
 			case <-timer.C:
@@ -210,10 +200,11 @@ func (c *Client) readPump(ctx context.Context) {
 	//test
 	log.Info("reading inner")
 	for {
-		mt, message, err := c.Conn.ReadMessage()
+		timeCH <- &struct{}{}
 		//test
-		log.Info("read: ", string(message))
+		fmt.Println("********read*******")
 		//
+		mt, message, err := c.Conn.ReadMessage()
 		{
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -243,21 +234,18 @@ func (c *Client) readPump(ctx context.Context) {
 						log.Error(err)
 						continue
 					}
-					//test
-					fmt.Println("read: ", string(b))
-					c.Send <- b
-					//test
-					//c.Hub.HttpMessage <- b
-					//
+					c.Hub.HttpMessage <- b
 					timeCH <- &struct{}{}
+					continue
 				case *protobuf.Message_DeviceInfo:
 					deviceData := messageType.DeviceInfo.Data
 					PostDeviceInfo([]byte(deviceData))
+					continue
 				}
 			case websocket.TextMessage:
 				fmt.Println("read: ping")
-				timeCH <- &struct{}{}
 				c.SendText <- message
+				continue
 			}
 		}
 	}
@@ -334,7 +322,6 @@ func Check(conn *websocket.Conn) (s string, err error) {
 			checkOK = true
 			return author.SerialNumber, err
 		}
-
 	}
 	return "", fmt.Errorf("check: unexpected err")
 }

@@ -4,6 +4,9 @@ installerToken=${3}
 id=${2}
 flag=1
 edgeDaemonWorkplace="/opt/easyfetch/edgeDaemon"
+if [ -e /tmp/installEdgeDaemon.tar.gz ]; then
+  rm /tmp/installEdgeDaemon.tar.gz || echo "ERROR: REMOVE INSTALLEDGEDAEMON ERR"
+fi
 if [ -d ${edgeDaemonWorkplace} ]; then
   rm -rf ${edgeDaemonWorkplace} || echo "ERROR: REMOVE WORKPLACE ERR" || flag=0
 else
