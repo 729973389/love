@@ -46,7 +46,6 @@ func main() {
 					case syscall.SIGABRT:
 						log.Info("ABRT")
 						cancel()
-
 					}
 				}()
 			case <-ctx.Done():
@@ -56,8 +55,6 @@ func main() {
 					log.Warning("EXIT : MAIN : ABNORMAL")
 					os.Exit(1)
 				}
-
-
 			}
 		}
 	}()

@@ -38,40 +38,46 @@ func RunDWS(ctx context.Context, hub *Hub) {
 		log.Error(errors.Wrap(err, "DWS dial"))
 		return
 	}
-	defer c.Close()
-	defer resp.Body.Close()
+	defer func() {
+		_ = c.Close()
+		_ = resp.Body.Close()
+	}()
 	respByte := make([]byte, 512)
-	resp.Body.Read(respByte)
-	resp.Body.Close()
+	_, _ = resp.Body.Read(respByte)
+	_ = resp.Body.Close()
 	log.Info(string(respByte))
 	dws := &DWS{Hub: hub, Conn: c, Send: make(chan []byte, 1024), Map: make(map[string]string)}
 	wg.Add(1)
 	go func() {
 		defer func() {
-			wg.Done()
 			cancel()
+			wg.Done()
 		}()
 		dws.Read()
 	}()
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			cancel()
+			wg.Done()
+		}()
 		dws.Write(ctxChild)
 	}()
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			wg.Done()
+		}()
 		dws.Loop(ctxChild)
 	}()
 	wg.Wait()
-
 }
 
 //Write is responsible for write message to websocket client
 func (dws *DWS) Write(ctx context.Context) {
 	defer func() {
 		log.Warning("EXIT DWS WRITE")
-		dws.Conn.Close()
+		_ = dws.Conn.Close()
 	}()
 	for {
 		select {
@@ -87,19 +93,16 @@ func (dws *DWS) Write(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		}
-
 	}
 }
 
 //Read is responsible for reading from remote websocket server,and when read have a mistake,it will return to finish reading,and make all the websocket function stopped.
 func (dws *DWS) Read() {
-	defer log.Warning("EXIT: DWS READ")
-	defer dws.Conn.Close()
+	defer func() {
+		_ = dws.Conn.Close()
+		log.Warning("EXIT: DWS READ")
+	}()
 	for {
-		//if err := dws.Conn.SetReadDeadline(time.Now().Add(DWSTime)); err != nil {
-		//	log.Error(errors.Wrap(err, "dws read"))
-		//	continue
-		//}
 		mt, message, err := dws.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseTLSHandshake) {
@@ -110,7 +113,7 @@ func (dws *DWS) Read() {
 		switch mt {
 		case websocket.TextMessage:
 			s := string(message)
-			log.Info(s)
+			log.Info("deviceWS read: ", s)
 			if s == "ping" || s == "pong" {
 				continue
 			}
@@ -122,7 +125,6 @@ func (dws *DWS) Read() {
 			if t == "connected" || t == "refused" {
 				continue
 			}
-
 			switch deviceId, err := FindKeyString(s, "deviceId"); t {
 			case bindDevice:
 				if err != nil {
@@ -192,9 +194,7 @@ func (dws *DWS) Read() {
 			default:
 				log.Warning("No correct information")
 			}
-
 		}
-
 	}
 }
 

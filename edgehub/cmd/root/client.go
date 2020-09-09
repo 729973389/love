@@ -197,13 +197,8 @@ func (c *Client) readPump(ctx context.Context) {
 			}
 		}
 	}()
-	//test
-	log.Info("reading inner")
 	for {
 		timeCH <- &struct{}{}
-		//test
-		fmt.Println("********read*******")
-		//
 		mt, message, err := c.Conn.ReadMessage()
 		{
 			if err != nil {
@@ -224,9 +219,7 @@ func (c *Client) readPump(ctx context.Context) {
 				switch messageType := messageInfo.Switch.(type) {
 				case *protobuf.Message_Author:
 					log.Error("Author massage is not allowed")
-					//test
-					continue
-					//return
+					return
 				case *protobuf.Message_EdgeInfo:
 					edgeInfo := messageType.EdgeInfo
 					b, err := proto.Marshal(edgeInfo)
@@ -252,7 +245,7 @@ func (c *Client) readPump(ctx context.Context) {
 }
 
 func CheckHmac(author *protobuf.Author) bool {
-	var b = []byte(GetConfig().Key)
+	var b = []byte(Info.Key)
 	hash := hmac.New(sha256.New, b)
 	_, err := hash.Write([]byte(author.SerialNumber + author.Time))
 	if err != nil {

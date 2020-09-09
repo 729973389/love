@@ -3,6 +3,7 @@ package root
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/config"
@@ -10,9 +11,13 @@ import (
 	"os"
 )
 
+//filename of configuration
 var socketFile = "socket.json"
-var Info = GetConfig()
 
+//Info holds the global configuration
+var Info config.Info
+
+//set default configuration
 func SetConfig() {
 	configSocket := &config.Info{}
 	configSocket.EdgeInfoServer = "http://192.168.32.150:8081"
@@ -39,24 +44,25 @@ func SetConfig() {
 	writers.Flush()
 }
 
-func GetConfig() config.Info {
+//initialize the configuration
+func init() {
 	for i := 0; i < 2; i++ {
 		b, err := ioutil.ReadFile(socketFile)
 		if err != nil {
+			if i == 1 {
+				panic(fmt.Sprintln("getConfig failed: ", err))
+			}
 			log.Warning(errors.Wrap(err, "read config"))
 			SetConfig()
-			if i == 0 {
-				continue
-			}
+			continue
 		}
 		socket := &config.Info{}
 		err = json.Unmarshal(b, socket)
 		if err != nil {
-			log.Warning(err)
+			log.Error(err)
+			panic(fmt.Sprintln("getConfig failed: ", err))
 		}
 		log.Println("Create default config file success")
-		return *socket
-
+		Info = *socket
 	}
-	return config.Info{}
 }

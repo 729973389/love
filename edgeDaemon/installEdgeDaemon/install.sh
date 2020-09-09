@@ -29,6 +29,7 @@ else
 fi
 if [ -e "${edgeDaemonWorkplace}/jsonCreater" ]; then
   cd ${edgeDaemonWorkplace}
+  chmod 770 jsonCreater
   ./jsonCreater "-url" ${remoteUrl} "-id" ${id} "-token" ${installerToken} || echo "ERROR: CREAT CONFIGFILE ERROR" || flag=0
 else
   echo "ERROR: NO jsonCreater"

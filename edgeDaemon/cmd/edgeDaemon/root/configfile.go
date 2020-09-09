@@ -7,29 +7,22 @@ import (
 	"io/ioutil"
 )
 
+//filename of configFile
 const configFile = "server.json"
 
-var Config = GetConfig()
+//Config holds the global configuration
+var Config config.Server
 
-type Server struct {
-	Url          string `json:"url"`
-	Token        string `json:"token"`
-	SerialNumber string `json:"serialNumber"`
-}
-
-func GetConfig() *config.Server {
-	config := &config.Server{}
+//specific the configuration
+func init() {
+	c := &config.Server{}
 	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Fatal("server.json", err)
-		return config
+		log.Fatal("server.json: ", err)
 	}
-	err = json.Unmarshal(b, config)
+	err = json.Unmarshal(b, c)
 	if err != nil {
-		log.Fatal("server.json", err)
-		return config
+		log.Fatal("server.json: ", err)
 	}
-	log.Println(config)
-	return config
-
+	Config = *c
 }

@@ -25,11 +25,6 @@ type WS struct {
 	Token        string
 }
 
-var (
-	Version = "v1"
-	Build   = "N/A"
-)
-
 const writeTime = 10 * time.Second
 const pongTime = 13 * time.Second
 const pingTime = (9 * pongTime) / 10
@@ -53,17 +48,19 @@ func RunWS(ctx context.Context, hub *Hub) {
 		log.Error(errors.Wrap(err, pwd))
 		return
 	}
-	defer c.Close()
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+		_ = c.Close()
+	}()
 	respByte := make([]byte, 512)
-	resp.Body.Read(respByte)
+	_, _ = resp.Body.Read(respByte)
 	fmt.Println("resp: ", string(respByte))
 	c.SetCloseHandler(func(code int, text string) error {
 		log.Error(text+": ", code)
 		return err
 	})
-	time := GetTime()
-	message := protobuf.SetOneOfAuthor(id, token, time, GetHashMac(id, time))
+	myTime := GetTime()
+	message := protobuf.SetOneOfAuthor(id, token, myTime, GetHashMac(id, myTime))
 	b, err := proto.Marshal(message)
 	if err != nil {
 		log.Error(errors.Wrap(err, pwd))
@@ -101,12 +98,10 @@ func RunWS(ctx context.Context, hub *Hub) {
 		defer wg.Done()
 		ws.LoopInfo(ctxchild)
 	}()
-	for {
-		select {
-		case <-ctx.Done():
-			log.Warning("closing run")
-			return
-		}
+	select {
+	case <-ctxchild.Done():
+		log.Warning("closing run")
+		break
 	}
 	wg.Wait()
 }
@@ -114,7 +109,7 @@ func RunWS(ctx context.Context, hub *Hub) {
 func (w *WS) Write(ctx context.Context) {
 	pwd := "write"
 	defer func() {
-		w.Conn.Close()
+		_ = w.Conn.Close()
 		log.Warning("EXIT : WRITE")
 	}()
 	for {
@@ -162,7 +157,7 @@ func (w *WS) Write(ctx context.Context) {
 func (w *WS) Read() {
 
 	defer func() {
-		w.Conn.Close()
+		_ = w.Conn.Close()
 		log.Warning("EXIT: READ")
 	}()
 	w.Conn.SetPingHandler(func(appData string) error {
@@ -281,6 +276,13 @@ GetHashMac(id string, time string) string {
 }
 
 func GetTime() string {
-	time := time.Now().UTC()
-	return fmt.Sprintf("%d%02d%02dT%02d%02d%02dZ", time.Year(), time.Month(), time.Day(), time.Hour(), time.Minute(), time.Second())
+	myTime := time.Now().UTC()
+	return fmt.Sprintf(
+		"%d%02d%02dT%02d%02d%02dZ",
+		myTime.Year(),
+		myTime.Month(),
+		myTime.Day(),
+		myTime.Hour(),
+		myTime.Minute(),
+		myTime.Second())
 }

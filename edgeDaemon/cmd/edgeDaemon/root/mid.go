@@ -33,6 +33,7 @@ var c *Client
 //}
 
 func RunMQTT(ctx context.Context, hub *Hub) {
+	ctxChild, cancel := context.WithCancel(ctx)
 	defer log.Warning("EXIT RUNMQTT")
 	ops := mqtt.NewClientOptions().SetClientID("edgeDaemon").AddBroker("tcp://localhost:7883").
 		SetUsername("edgeDaemon").
@@ -50,12 +51,15 @@ func RunMQTT(ctx context.Context, hub *Hub) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		c.Receive(ctx)
+		defer func() {
+			cancel()
+			wg.Done()
+		}()
+		c.Receive(ctxChild)
 	}()
 	//go c.PublishCommand()
 	select {
-	case <-ctx.Done():
+	case <-ctxChild.Done():
 		break
 	}
 	wg.Wait()
@@ -110,22 +114,34 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, message mqtt.M
 	log.Println(string(message.Payload()))
 }
 
-func FindKeyString(s, k string) string {
-	ft1 := strings.Split(s, ",")
-	for _, v := range ft1 {
-		if strings.Contains(v, "\""+k+"\":") {
-			tokens := strings.Split(v, "\"")
-			for i2, v2 := range tokens {
-				if strings.Contains(v2, ":") {
-					if tokens[i2-1] == k {
-						return tokens[i2+1]
+//FindKeyString finds string value when given a specified parameter-list(json,key string)
+func FindKeyString(s string, key string) (string, error) {
+	if !strings.Contains(s, ",") {
+		if strings.Contains(s, "\""+key+"\"") {
+			t := strings.Split(s, "\"")
+			for i, t2 := range t {
+				if strings.Contains(t2, ":") {
+					if t[i-1] == key {
+						return t[i+1], nil
 					}
 				}
 			}
 		}
 	}
-	log.Error("MQTT can‘t find ", k)
-	return ""
+	line := strings.Split(s, ",")
+	for _, v := range line {
+		if strings.Contains(v, "\""+key+"\":") {
+			t := strings.Split(v, "\"")
+			for i, t2 := range t {
+				if strings.Contains(t2, ":") {
+					if t[i-1] == key {
+						return t[i+1], nil
+					}
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("FindKeyString: can't find %s from %s", key, s)
 }
 
 func (c *Client) PublishCommand() {
@@ -133,7 +149,10 @@ func (c *Client) PublishCommand() {
 		select {
 		case command := <-c.Hub.Command:
 			/////////////command
-			deviceId := FindKeyString(string(command), "deviceId")
+			deviceId, err := FindKeyString(string(command), "deviceId")
+			if err != nil {
+				log.Error(errors.Wrap(err, "publishCommand"))
+			}
 			if token := c.Client.Publish("easyfetch/device/command"+deviceId, 1, false, command); token.Wait() && token.Error() != nil {
 				log.Warning(token.Error())
 				continue
