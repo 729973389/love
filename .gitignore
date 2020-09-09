@@ -1,2 +1,7 @@
 *.log
-build/
+build/*
+*.json
+*.zip
+*.tar
+*.tar.gz
+
