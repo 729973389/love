@@ -80,9 +80,7 @@ func Servews(ctx context.Context, hub *Hub, w http.ResponseWriter, r *http.Reque
 	log.Println("connecting: ", r.RemoteAddr)
 	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 512), SerialNumber: serialNumber, SendText: make(chan []byte, 256)}
 	client.Hub.Register <- client
-	defer func() {
-		client.Conn.Close()
-	}()
+	defer PutStatus(client.SerialNumber, nil, false)
 	hookWrite := client.HookWrite(ctxChild)
 	go func() {
 		defer cancel()
@@ -135,9 +133,6 @@ func (c *Client) SendDeviceMap() bool {
 
 //send all message from this goroutine
 func (c *Client) WritePump(ctx context.Context) {
-	defer func() {
-		c.Conn.Close()
-	}()
 	for {
 		select {
 		case <-c.SendText:
@@ -166,13 +161,11 @@ func (c *Client) WritePump(ctx context.Context) {
 
 //read message from every single client
 func (c *Client) readPump(ctx context.Context) {
-	defer c.Conn.Close()
 	defer log.Warning("EXIT READPUMP")
 	timer := time.NewTimer(pongWait)
 	defer timer.Stop()
 	defer func() {
 		log.Warning("closing read: ", c.Conn.RemoteAddr())
-		c.Conn.Close()
 	}()
 	c.Conn.SetPongHandler(func(appData string) error {
 		log.Info("pongHandler")
@@ -234,6 +227,12 @@ func (c *Client) readPump(ctx context.Context) {
 					deviceData := messageType.DeviceInfo.Data
 					PostDeviceInfo([]byte(deviceData))
 					continue
+				case *protobuf.Message_EdgeProperties:
+					edgeProperties := messageType.EdgeProperties
+					if err := PutStatus(c.SerialNumber, edgeProperties, true); err != nil {
+						log.Error(errors.Wrap(err, "read: edgeProperties"))
+						return
+					}
 				}
 			case websocket.TextMessage:
 				fmt.Println("read: ping")
@@ -261,15 +260,6 @@ func CheckHmac(author *protobuf.Author) bool {
 }
 
 func Check(conn *websocket.Conn) (s string, err error) {
-	log.Info("checking")
-	checkOK := false
-	defer func() {
-		if checkOK == false {
-			log.Error("check: ", checkOK)
-			return
-		}
-		log.Info("check: ", checkOK)
-	}()
 	mt, message, err := conn.ReadMessage()
 	if err != nil {
 		err = errors.Wrap(err, "check")
@@ -299,22 +289,7 @@ func Check(conn *websocket.Conn) (s string, err error) {
 			return "", fmt.Errorf("check: token: failed: %v", conn.RemoteAddr())
 		}
 		log.Info("Check success:", conn.RemoteAddr())
-		ch := make(chan error, 1)
-		defer close(ch)
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		select {
-		case <-ticker.C:
-			err = fmt.Errorf("httpRegister: timeout")
-			return "", err
-		case ch <- PutStatus(author.SerialNumber, true):
-			if err = <-ch; err != nil {
-				err = errors.Wrap(err, "putStatus")
-				return
-			}
-			checkOK = true
-			return author.SerialNumber, err
-		}
+		return author.SerialNumber, nil
 	}
 	return "", fmt.Errorf("check: unexpected err")
 }

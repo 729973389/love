@@ -1,5 +1,5 @@
 {
-  "url": "localhost:43211/edgeHub",
-  "token": "a3b01ed094bf4404ba88d2858a01d3eb",
-  "serialNumber": "50fc986cbf77465d96d9087ed164c0fc"
+  "url": "192.168.32.11:43211/edgeHub",
+  "token": "0692b0c7d3ec42288df2e04431bdec89",
+  "serialNumber": "adb208d7e8e54ecf9646fa9354fa9a73"
 }

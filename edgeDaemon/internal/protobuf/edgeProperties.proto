@@ -1,0 +1,10 @@
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+message edgeProperties{
+  string OS = 1;
+  string ARC = 2;
+  int32 CPUNum = 3;
+  string hostName = 4;
+}
+

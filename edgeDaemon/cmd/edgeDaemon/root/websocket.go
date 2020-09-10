@@ -87,10 +87,11 @@ func RunWS(ctx context.Context, hub *Hub) {
 		ws.Read()
 	}()
 	wg.Add(1)
+	hookWrite := ws.HookWrite(ctx)
 	go func() {
 		defer cancel()
 		defer wg.Done()
-		ws.Write(ctxchild)
+		hookWrite()
 	}()
 	wg.Add(1)
 	go func() {
@@ -98,12 +99,35 @@ func RunWS(ctx context.Context, hub *Hub) {
 		defer wg.Done()
 		ws.LoopInfo(ctxchild)
 	}()
-	select {
-	case <-ctxchild.Done():
-		log.Warning("closing run")
-		break
-	}
 	wg.Wait()
+}
+
+func (w *WS) HookWrite(ctx context.Context) func() {
+	return func() {
+		defer func() {
+			log.Warning("EXIT: HOOKWRITE")
+		}()
+		if ok := w.SendEdgeProperties(); !ok {
+			log.Error("sendEdgeProperties", ok)
+			return
+		}
+		w.Write(ctx)
+	}
+}
+
+func (w *WS) SendEdgeProperties() bool {
+	properties := protobuf.GetEdgeProperties()
+	message := &protobuf.Message{Switch: &protobuf.Message_EdgeProperties{EdgeProperties: &properties}}
+	b, err := proto.Marshal(message)
+	if err != nil {
+		log.Error(errors.Wrap(err, "sendEdgeProperties"))
+		return false
+	}
+	if err := w.Conn.WriteMessage(websocket.BinaryMessage, b); err != nil {
+		log.Error(errors.Wrap(err, "sendEdgeProperties"))
+		return false
+	}
+	return true
 }
 
 func (w *WS) Write(ctx context.Context) {

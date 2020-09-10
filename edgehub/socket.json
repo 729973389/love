@@ -1,11 +1,14 @@
 {
- "edgeInfoServer": "http://192.168.32.150:8081",
- "postEdge": "/api/v2/edge/data/create",
- "socket": "43211",
- "putStatus": "/api/v2/edge/update/online",
- "getInfo": "/api/v2/edge/getInfo",
- "key": "3141592666",
- "postDevice": "/api/v1/iot/data/transfer",
- "deviceInfoServer": "http://192.168.32.11:9000",
- "deviceControlServer": "ws://192.168.32.150:8082/api/v1/ws/easyfetch"
+  "edgeInfoServer": "http://192.168.32.150:8082",
+  "postEdge": "/api/v1/edge/data/create",
+  "socket": "43211",
+  "putStatus": "/api/v1/edge/update/property",
+  "getInfo": "/api/v1/edge/getInfo",
+  "key": "3141592666",
+  "postDevice": "/api/v1/iot/data/transfer",
+  "deviceInfoServer": "http://192.168.32.11:9000",
+  "deviceControlServer": "ws://192.168.32.150:8082/api/v1/ws/easyfetch",
+  "getEdgeDevice": "http://192.168.32.150:8083/api/v1/device/edge/getEdgeDevice",
+  "getEdgeDeviceToken": "a4b57c3a2241e9cfcf66e415e853d3b2",
+  "edgeInfoServerToken": "1d38151c19708bd85777b485c3fa9da8"
 }

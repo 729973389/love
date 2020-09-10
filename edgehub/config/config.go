@@ -10,4 +10,7 @@ type Info struct {
 	PostDevice          string `json:"postDevice"`
 	DeviceInfoServer    string `json:"deviceInfoServer"`
 	DeviceControlServer string `json:"deviceControlServer"`
+	GetEdgeDevice       string `json:"getEdgeDevice"`
+	GetEdgeDeviceToken  string `json:"getEdgeDeviceToken"`
+	EdgeInfoServerToken string `json:"edgeInfoServerToken"`
 }

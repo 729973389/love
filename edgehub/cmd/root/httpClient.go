@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wuff1996/edgeHub/internal/protobuf"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -57,7 +58,7 @@ func Serve(ctx context.Context, hub *Hub) {
 				log.Warning("httpUnregister: ", "channel closed")
 				return
 			}
-			PutStatus(c.SerialNumber, false)
+			PutStatus(c.SerialNumber, nil, false)
 		case <-ctx.Done():
 			log.Warning("HTTP SERVE: ", ctx.Err())
 			return
@@ -87,6 +88,7 @@ func (c *HttpClient) PostEdge(b []byte) {
 		return
 	}
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("token", Info.EdgeInfoServerToken)
 	resp, err := longClient.Do(req)
 	//resp, err := http.Post(route, "application/json", bytes.NewReader(b))
 	if err != nil {
@@ -99,25 +101,33 @@ func (c *HttpClient) PostEdge(b []byte) {
 	log.Println("POST:SEND DATA: ", string(respBuf))
 }
 
+type PutProperties struct {
+	SerialNumber string                   `json:"serialNumber"`
+	Property     *protobuf.EdgeProperties `json:"property,omitempty"`
+	Online       bool                     `json:"online"`
+}
+
 //put the edge status to the http server
-func PutStatus(number string, status bool) error {
+func PutStatus(number string, data *protobuf.EdgeProperties, status bool) error {
 	var route = Info.EdgeInfoServer + Info.PutStatus
-	httpInfo := &protobuf.HttpOnline{
+	properties := &PutProperties{
 		SerialNumber: number,
+		Property:     data,
 		Online:       status,
 	}
-	b, err := json.Marshal(httpInfo)
+	b, err := json.Marshal(properties)
 	if err != nil {
 		return errors.Wrap(err, "putStatus")
 	}
-	log.Println(string(b))
-	request, err := http.NewRequest("PUT", route, bytes.NewReader(b))
+	fmt.Println(string(b))
+	req, err := http.NewRequest("PUT", route, bytes.NewReader(b))
 	if err != nil {
 		return errors.Wrap(err, "putStatus")
 	}
-	request.Header.Add("Content-Type", "application/json")
-	defer request.Body.Close()
-	resp, err := longClient.Do(request)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("token", Info.EdgeInfoServerToken)
+	defer req.Body.Close()
+	resp, err := longClient.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "putStatus")
 	}
@@ -129,10 +139,17 @@ func PutStatus(number string, status bool) error {
 
 }
 
-//get the specific serialNumber from the http server and check whether the remote token is the same as parameter-list t(token)
+//get the specific serialNumber from the http server and check whether the remote token is the same as parameter-list
+//t(token) s(serialNumber)
 func GEtInfo(t string, s string) bool {
 	var route = Info.EdgeInfoServer + Info.GetInfo + "?" + fmt.Sprint("serialNumber=", s)
-	resp, err := http.Get(route)
+	req, err := http.NewRequest("GET", route, io.ReadCloser(nil))
+	if err != nil {
+		log.Error(errors.Wrap(err, "getInfo"))
+		return false
+	}
+	req.Header.Add("token", Info.EdgeInfoServerToken)
+	resp, err := longClient.Do(req)
 	if err != nil {
 		log.Error(err)
 		return false
@@ -155,14 +172,15 @@ func GEtInfo(t string, s string) bool {
 func PostDeviceInfo(message []byte) {
 	var route = Info.DeviceInfoServer + Info.PostDevice
 	log.Info("PostDeviceInfo: ", string(message))
-	request, err := http.NewRequest("POST", route, strings.NewReader(string(message)))
+	req, err := http.NewRequest("POST", route, strings.NewReader(string(message)))
 	if err != nil {
 		log.Error(errors.Wrap(err, "post deviceInfo"))
 		return
 	}
-	request.Header.Add("Content-Type", "application/json")
-	//resp,err:=http.Post(route,"application/json",bytes.NewReader(message))
-	resp, err := longClient.Do(request)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("token", Info.EdgeInfoServerToken)
+	defer req.Body.Close()
+	resp, err := longClient.Do(req)
 	if err != nil {
 		log.Error("PostDeviceInfo: ", err)
 		return

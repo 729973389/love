@@ -4,10 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 )
 
 var addr = flag.String("port", ":43211", "http service address,e.g. :43211")
@@ -87,4 +91,41 @@ func FindKeyString(s string, key string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("FindKeyString: can't find %s from %s", key, s)
+}
+
+var getEdgeDeviceClient *http.Client
+
+func init() {
+	getEdgeDeviceClient = &http.Client{
+		Timeout: 90 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				KeepAlive: 60 * time.Second,
+				Timeout:   60 * time.Second}).DialContext,
+			MaxIdleConns:        MaxIdleConns,
+			MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+		},
+	}
+}
+
+//get edge device relation when given a serialNumber.
+func GetEdgeDevice(s string) {
+	var rout = Info.GetEdgeDevice + "?" + s
+	req, err := http.NewRequest("GET", rout, io.ReadCloser(nil))
+	if err != nil {
+		log.Error(errors.Wrap(err, "GetEdgeDevice"))
+		return
+	}
+	req.Header.Add("token", Info.GetEdgeDeviceToken)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := getEdgeDeviceClient.Do(req)
+	if err != nil {
+		log.Error(errors.Wrap(err, "getEdgeDevice"))
+		return
+	}
+	defer resp.Body.Close()
+	read := make([]byte, 512)
+	_, _ = resp.Body.Read(read)
+	fmt.Println(string(read))
 }
