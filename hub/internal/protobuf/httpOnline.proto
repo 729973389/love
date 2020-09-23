@@ -1,0 +1,8 @@
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+message httpOnline {
+  string serialNumber = 1;
+  bool online = 2;
+  string data = 3;
+}
