@@ -11,17 +11,20 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/wuff1996/edgeDaemon/api/container"
 	"github.com/wuff1996/edgeDaemon/internal/protobuf"
 	"time"
 )
 
 type WS struct {
-	Hub          *Hub
-	Conn         *websocket.Conn
-	Send         chan []byte
-	PingPong     chan int
-	SerialNumber string
-	Token        string
+	Hub           *Hub
+	Conn          *websocket.Conn
+	Send          chan []byte
+	PingPong      chan int
+	SerialNumber  string
+	Token         string
+	Docker        map[string]*container.Docker
+	DockerChannel chan *container.Docker
 }
 
 const writeTime = 10 * time.Second
@@ -71,12 +74,14 @@ func RunWS(ctx context.Context, hub *Hub) {
 		return
 	}
 	ws := &WS{
-		Hub:          hub,
-		Conn:         c,
-		Send:         make(chan []byte, 1024),
-		PingPong:     make(chan int, 32),
-		SerialNumber: id,
-		Token:        token,
+		Hub:           hub,
+		Conn:          c,
+		Send:          make(chan []byte, 1024),
+		PingPong:      make(chan int, 32),
+		SerialNumber:  id,
+		Token:         token,
+		Docker:        make(map[string]*container.Docker),
+		DockerChannel: make(chan *container.Docker, 32),
 	}
 	go func() {
 		defer cancel()
@@ -228,12 +233,76 @@ func (w *WS) Read() {
 			case *protobuf.Message_DeviceMap:
 				deviceMap := t.DeviceMap
 				w.Hub.DeviceMap <- deviceMap.DeviceId
+			case *protobuf.Message_Docker:
+				docker := t.Docker
+				d := &container.Docker{Docker: docker, Resp: make(chan string, 512)}
+				w.DockerChannel <- d
 			}
 		case websocket.TextMessage:
 			fmt.Println(string(message))
 			continue
 		}
 	}
+}
+
+//the main routine that is responsible for docker actions.
+func (w *WS) DockerRun(ctx context.Context) {
+	defer log.Warning("EXIT: DOCKERRUN")
+	ctxChild, cancel := context.WithCancel(ctx)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case docker := <-w.DockerChannel:
+			if docker.Type == "pull" || docker.Type == "update" {
+				if w.Docker[docker.Container.Name] == nil {
+					//yesterday
+					go func() {
+						for {
+							select {
+							case <-ctxChild.Done():
+								return
+							case resp := <-docker.Resp:
+								//response
+								log.Info(resp)
+							}
+						}
+					}()
+				}
+			}
+			switch docker.Type {
+			case "pull":
+				if err := docker.Pull(); err != nil {
+					log.Error(errors.Wrap(err, "dockerRun"))
+					continue
+				}
+				if err := docker.Run(); err != nil {
+					log.Error(errors.Wrap(err, "dockerRun"))
+					continue
+				}
+				log.Info("dockerRun: pull: success")
+			case "update":
+				if err := docker.Update(); err != nil {
+					log.Error(errors.Wrap(err, "dockerRun"))
+					continue
+				}
+				log.Info("dockerRun: update: success")
+			case "delete":
+				cancel()
+				if err := docker.Remove(); err != nil {
+					log.Error(errors.Wrap(err, "dockerRun"))
+					continue
+				}
+				delete(w.Docker, docker.Container.Name)
+				log.Info("dockerRun: delete: success")
+			default:
+				log.Error("type is not right")
+				continue
+			}
+		}
+	}
+
 }
 
 //send schedule information e.g. systemInfo&ping

@@ -1,6 +1,8 @@
 package root
 
-import "github.com/wuff1996/edgeDaemon/internal/protobuf"
+import (
+	"github.com/wuff1996/edgeDaemon/internal/protobuf"
+)
 
 type Hub struct {
 	Down       chan *protobuf.DeviceGister
