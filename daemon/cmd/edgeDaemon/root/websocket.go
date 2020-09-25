@@ -24,7 +24,7 @@ type WS struct {
 	SerialNumber  string
 	Token         string
 	Docker        map[string]*container.Docker
-	DockerChannel chan *container.Docker
+	DockerChannel chan *protobuf.Docker
 }
 
 const writeTime = 10 * time.Second
@@ -81,7 +81,7 @@ func RunWS(ctx context.Context, hub *Hub) {
 		SerialNumber:  id,
 		Token:         token,
 		Docker:        make(map[string]*container.Docker),
-		DockerChannel: make(chan *container.Docker, 32),
+		DockerChannel: make(chan *protobuf.Docker, 32),
 	}
 	go func() {
 		defer cancel()
@@ -95,6 +95,9 @@ func RunWS(ctx context.Context, hub *Hub) {
 	go func() {
 		defer cancel()
 		ws.LoopInfo(ctxchild)
+	}()
+	go func() {
+		ws.DockerCTL(ctxchild)
 	}()
 	for {
 		select {
@@ -235,8 +238,7 @@ func (w *WS) Read() {
 				w.Hub.DeviceMap <- deviceMap.DeviceId
 			case *protobuf.Message_Docker:
 				docker := t.Docker
-				d := &container.Docker{Docker: docker, Resp: make(chan string, 512)}
-				w.DockerChannel <- d
+				w.DockerChannel <- docker
 			}
 		case websocket.TextMessage:
 			fmt.Println(string(message))
@@ -245,64 +247,100 @@ func (w *WS) Read() {
 	}
 }
 
-//the main routine that is responsible for docker actions.
-func (w *WS) DockerRun(ctx context.Context) {
-	defer log.Warning("EXIT: DOCKERRUN")
-	ctxChild, cancel := context.WithCancel(ctx)
-	defer cancel()
+//DockerCTL hold all the docker goroutine
+func (w *WS) DockerCTL(ctx context.Context) {
+	defer log.Warning("EXIT DOCKERCTL")
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case docker := <-w.DockerChannel:
-			if docker.Type == "pull" || docker.Type == "update" {
-				if w.Docker[docker.Container.Name] == nil {
-					//yesterday
-					go func() {
-						for {
-							select {
-							case <-ctxChild.Done():
-								return
-							case resp := <-docker.Resp:
-								//response
-								log.Info(resp)
-							}
-						}
-					}()
-				}
+		case protoDocker := <-w.DockerChannel:
+			if protoDocker.Container.Name == "" {
+				continue
 			}
-			switch docker.Type {
+			if containerDocker := w.Docker[protoDocker.Container.Name]; containerDocker != nil {
+				containerDocker.CH <- protoDocker
+				continue
+			}
+			containerDocker := &container.Docker{Docker: protoDocker, Resp: make(chan string, 256), CH: make(chan *protobuf.Docker)}
+			w.Docker[protoDocker.Container.Name] = containerDocker
+			go func() {
+				ctxChild, cancel := context.WithCancel(ctx)
+				go func() {
+					defer cancel()
+					DockerRun(ctxChild, containerDocker, w)
+				}()
+				go func() {
+					defer cancel()
+					DockerReceive(ctxChild, containerDocker, w)
+				}()
+			}()
+			containerDocker.CH <- protoDocker
+		}
+	}
+
+}
+
+//DockerReceive receives message from docker,and can communicate to other channels.
+func DockerReceive(ctx context.Context, d *container.Docker, w *WS) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case response, ok := <-d.Resp:
+			if !ok {
+				return
+			}
+			//receive response
+			log.Info(response)
+		}
+	}
+
+}
+
+//DockerRun is responsible for
+func DockerRun(ctx context.Context, d *container.Docker, w *WS) {
+	defer delete(w.Docker, d.Container.Name)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Warning("dockerRun: exit: ", d.Container.Name)
+			return
+		case protoDocker := <-d.CH:
+			switch protoDocker.Type {
 			case "pull":
-				if err := docker.Pull(); err != nil {
+				if err := d.Pull(); err != nil {
 					log.Error(errors.Wrap(err, "dockerRun"))
 					continue
 				}
-				if err := docker.Run(); err != nil {
+				if err := d.Run(); err != nil {
 					log.Error(errors.Wrap(err, "dockerRun"))
 					continue
 				}
 				log.Info("dockerRun: pull: success")
 			case "update":
-				if err := docker.Update(); err != nil {
+				d.Docker = protoDocker
+				if err := d.Update(); err != nil {
 					log.Error(errors.Wrap(err, "dockerRun"))
 					continue
 				}
 				log.Info("dockerRun: update: success")
 			case "delete":
-				cancel()
-				if err := docker.Remove(); err != nil {
+				if err := d.Remove(); err != nil {
 					log.Error(errors.Wrap(err, "dockerRun"))
-					continue
+					delete(w.Docker, protoDocker.Container.Name)
+					log.Error("dockerRun: delete: failed")
+					return
 				}
-				delete(w.Docker, docker.Container.Name)
+				delete(w.Docker, protoDocker.Container.Name)
 				log.Info("dockerRun: delete: success")
+				return
 			default:
 				log.Error("type is not right")
 				continue
 			}
 		}
 	}
-
 }
 
 //send schedule information e.g. systemInfo&ping

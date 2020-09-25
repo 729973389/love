@@ -12,6 +12,7 @@ import (
 type Docker struct {
 	*protobuf.Docker
 	Resp chan string
+	CH   chan *protobuf.Docker
 }
 
 //pull images from cloud
@@ -76,10 +77,11 @@ func (c *Docker) Remove() error {
 	c.Resp <- resp
 	return nil
 }
+
 //Update delete the old container, then pull new image and run to create a new container
 func (c *Docker) Update() (err error) {
 	defer func() {
-		errors.Wrap(err, "update")
+		err = errors.Wrap(err, "update")
 	}()
 	if err = c.Remove(); err != nil {
 		return
@@ -97,7 +99,7 @@ func (c *Docker) Update() (err error) {
 func Exec(s string) (r string, err error) {
 	defer func() {
 		//if err is nil,Wrap returns nil
-		errors.Wrap(err, "exec")
+		err = errors.Wrap(err, "exec")
 	}()
 	var parameter []string
 	ss := strings.Split(s, " ")

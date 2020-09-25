@@ -50,4 +50,3 @@ func RunDocker() {
 	}
 	fmt.Println(read.String())
 }
-

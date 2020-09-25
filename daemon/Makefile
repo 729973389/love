@@ -19,6 +19,6 @@ clean:
 tar:
 	@go build -o installEdgeDaemon/jsonCreater jsonCreater/main.go
 	@go build -o installEdgeDaemon/edgeDaemon cmd/edgeDaemon/main.go
-	@sudo tar zcvf /wuff1996/nginx/source/installEdgeDaemon.tar.gz installEdgeDaemon
+	@sudo tar zcvf /home/wuff/windows/windows/installEdgeDaemon.tar.gz installEdgeDaemon
 wuff:
 	@sudo chown -R wuff:wuff ../edgeDaemon

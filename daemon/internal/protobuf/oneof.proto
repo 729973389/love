@@ -18,7 +18,7 @@ message message{
     protobuf.deviceGister deviceGister = 5;
     protobuf.deviceMap    deviceMap = 6;
     protobuf.edgeProperties edgeProperties = 7;
-    protobuf.docker docker=8;
+    protobuf.docker docker = 8;
   }
 }
 
