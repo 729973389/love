@@ -1,8 +1,0 @@
-syntax = "proto3";
-package protobuf;
-option go_package = "";
-message deviceInfo{
-  string deviceType = 1;
-  string data = 2;
-  string uuid = 3;
-}

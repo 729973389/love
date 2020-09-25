@@ -1,8 +1,0 @@
-syntax = "proto3";
-package protobuf;
-option go_package = "";
-message DiskInfo{
-  string Used = 1;
-  string Free = 2;
-  string Rate = 3;
-}
