@@ -1,0 +1,27 @@
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+message docker {
+  string type = 1;
+  image image = 2;
+  container container = 3;
+}
+//image information to use when docker pull image
+message image {
+  string url = 1;
+}
+
+//container information that contains:
+//1.the docker run parameter used to docker run
+//2.the information with container
+message container {
+  string status = 1;
+  string limitCPU = 2;
+  string limitMEM = 3;
+  string portExpose = 4;
+  string portPublish = 5;
+  string restart = 6;
+  string name = 7;
+}
+
+

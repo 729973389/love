@@ -1,0 +1,9 @@
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+message author{
+  string serialNumber = 1;
+  string token = 2;
+  string hmac = 3;
+  string time = 4;
+}

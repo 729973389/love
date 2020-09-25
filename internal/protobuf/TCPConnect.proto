@@ -1,0 +1,6 @@
+syntax = "proto3";
+package protobuf;
+import "system.proto";
+message connect {
+  protobuf.SystemInfo systemInfo = 3;
+}

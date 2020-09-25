@@ -1,0 +1,24 @@
+syntax = "proto3";
+package protobuf;
+option go_package = "";
+import "author.proto";
+import "edgeInfo.proto";
+import "deviceInfo.proto";
+import "deviceCommand.proto";
+import "deviceGister.proto";
+import "deviceMap.proto";
+import "edgeProperties.proto";
+import "docker.proto";
+message message{
+  oneof switch{
+    protobuf.author author = 1;
+    protobuf.edgeInfo edgeInfo = 2;
+    protobuf.deviceInfo deviceInfo = 3;
+    protobuf.deviceCommand deviceCommand = 4;
+    protobuf.deviceGister deviceGister = 5;
+    protobuf.deviceMap    deviceMap = 6;
+    protobuf.edgeProperties edgeProperties = 7;
+    protobuf.docker docker = 8;
+  }
+}
+
