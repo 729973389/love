@@ -1,0 +1,48 @@
+||stacaic memory management
+
+
+static memory:
+First, memory can be statically allocated, living inside our program’s binary, never changing 
+as the program runs. Static memory isn’t actually “allocated” at run time. Instead it moves 
+into memory with our program’s code before the program is even run avoiding any runtime cost of allocation.
+Static strings and constants in Rust and Swift are examples of statically allocated memory.
+
+stack allocated memory:
+Second, memory can be stack allocated. The stack is the data structure responsible for holding 
+information about active subroutines or functions. The stack sits at the top of memory and is 
+usually used for data that has a size known at compile time. For example, in many languages 
+integers are stack allocated while strings are not. This is because it’s always possible to 
+know how much memory needs to be allocated to represent a number, but it is not always possible 
+to know much memory is needed to represent a string. The string can be as short as a “” and as 
+long as Moby Dick or even longer!
+
+In Rust everything that does “grow” during the course of execution is heap allocated. This makes 
+sense since if it grows during execution, it can’t be known how big it is at compile time.
+
+Heap Allocated Memory:
+Lastly, memory can be heap allocated. The heap is a chunk of memory dedicated to holding data which 
+size we didn’t know until runtime. Think of an HTTP server. As it receives bytes off the wire, we must 
+allocate more and more memory on the heap since we cannot know how much more memory we’ll need. Allocating 
+heap memory is generally much less efficient than stack allocating the memory. This is because of all the 
+machinery that goes into finding space in the heap. The allocation function must find open space in the heap 
+and then it must use some of that space to mark both how much space is occupied and the fact that the memory 
+is still in use. Unlike the stack’s single instruction to allocate space, the heap requires much more work.
+
+|memory deallocation
+
+static memory:
+We can skip over statically allocated memory. Just as the memory gets allocated by the OS 
+when the process starts, the memory will be deallocated by the OS when the process ends.
+
+stack allocated memory:
+When a function’s scope ends, the stack pointer is moved “down”, effectively deallocating any memory that was allocated for that function. This moving of the stack pointer is usually done with one CPU instruction and is very efficient. Of course, if the variables are only referenced in CPU registers than no clean up is required. They’ll just be overwritten at some point.
+
+Heap Allocated Memory:
+Rust relies on manual memory management, where when to do heap memory deallocations is not left to some runtime system to determine like in garbage collected languages. Unlike in C, however, Rust does not require the programmer to type explicit deallocation calls, but rather statically determines when data is no longer referenced and inserts calls to the memory deallocation function at compile time. This means that in Rust no run time cost is paid to determine when to free heap memory.
+
+
+||rust
+性能:对Rust的数组进行操作时默认会检查索引是否越界
+类型与多态：类型推导也是Rust提供的特性之一，使用let语法宣告的变量可以不用宣告类型，亦不需要初始值来推断类型。但如果在稍后的程序中从未指派任何值到该变量，编译器会发出编译时（compile time）错误[27]。 函数可以使用泛型化参数（generics），但是必须绑定Trait。没有任何方法可以使用方法或运算符，又不宣告它们的类型，每一项都必确明确定义。
+Rust的对象系统是基于三样东西之上的，即实现（implementation）、Trait以及结构化资料（如struct）。实现的角色类似提供Class关键字的编程语言所代表的意义，并使用impl关键字。继承和多态则透过Trait实现，它们使得方法（method）可以在实现中被定义。结构化资料用来定义字段。实现和（trait）都无法定义字段，并且只有（trait）可以提供继承，藉以躲避C++的“钻石继承问题”（菱型缺陷）。
+
