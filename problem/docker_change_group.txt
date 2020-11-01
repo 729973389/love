@@ -1,0 +1,9 @@
+problem:
+what:
+每次输入docker 命令都需要带上sudo
+
+why:
+改账号不在docker组种
+
+how:
+$ sudo usermod -aG docker $USER
