@@ -1,0 +1,30 @@
+problem:
+what:
+How to use sipe\geth create a chain that 2 nodes can chat.
+
+why:
+I want to test my restruct to the rlpFrame layer.
+
+How:
+First:
+generate the genesisBlock:
+{
+"gasLimit": "",
+"difficulty": "",
+"alloc": {
+	["0x":{}]
+	}
+"config":{
+	"chainId": ,
+
+}
+}
+
+Second:
+$ geth --datadir data init genesis.json
+$ geth --datadir --nodiscover --networkid xxx console
+
+// --nodiscover:disables the peer discover mechanism and enables manual peer addition.
+To get nodeInfo: $ admin.nodeInfo
+And set another node in the same way
+admin.addPeer("enode://")
