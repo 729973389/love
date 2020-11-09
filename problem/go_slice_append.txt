@@ -1,0 +1,10 @@
+Problem:
+
+What:
+add a slice follow a slice.
+
+Why:
+I need to achieve this function and do not want to use stupid loop lol.
+
+How:
+des = append(des, srcSlice...)
